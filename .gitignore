@@ -1,0 +1,49 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+static/
+media/
+db.sqlite3
+local_settings.py
+.env
+.env.*
+
+# Pipenv
+Pipfile.lock
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Python
+*.pyo
+*.pyd
+*.swp
+*.bak
+*.tmp
+
+# Migrations
+**/migrations/*
+!**/migrations/__init__.py
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# Test & build outputs
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# MySQL
+*.sql
