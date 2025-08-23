@@ -526,9 +526,11 @@ def get_user_pets(user):
     """
     try:
         # Get all pets owned by the user
-        pets = AnimalProfileModel.objects.filter(
-            owner=user, type="pet"
-        ).prefetch_related("images").order_by("-created_at")
+        pets = (
+            AnimalProfileModel.objects.filter(owner=user, type="pet")
+            .prefetch_related("images")
+            .order_by("-created_at")
+        )
 
         # Serialize pets data
         pets_data = [

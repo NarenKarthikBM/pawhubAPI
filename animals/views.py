@@ -938,27 +938,41 @@ class UserPetsListAPI(APIView):
                                     "species": openapi.Schema(type=openapi.TYPE_STRING),
                                     "breed": openapi.Schema(type=openapi.TYPE_STRING),
                                     "type": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_sterilized": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "is_sterilized": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
                                     "images": openapi.Schema(
                                         type=openapi.TYPE_ARRAY,
                                         items=openapi.Schema(
                                             type=openapi.TYPE_OBJECT,
                                             properties={
-                                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                                                "image_url": openapi.Schema(type=openapi.TYPE_STRING),
+                                                "id": openapi.Schema(
+                                                    type=openapi.TYPE_INTEGER
+                                                ),
+                                                "image_url": openapi.Schema(
+                                                    type=openapi.TYPE_STRING
+                                                ),
                                             },
                                         ),
                                     ),
                                     "location": openapi.Schema(
                                         type=openapi.TYPE_OBJECT,
                                         properties={
-                                            "latitude": openapi.Schema(type=openapi.TYPE_NUMBER),
-                                            "longitude": openapi.Schema(type=openapi.TYPE_NUMBER),
+                                            "latitude": openapi.Schema(
+                                                type=openapi.TYPE_NUMBER
+                                            ),
+                                            "longitude": openapi.Schema(
+                                                type=openapi.TYPE_NUMBER
+                                            ),
                                         },
                                         nullable=True,
                                     ),
-                                    "created_at": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "updated_at": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "updated_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
                                 },
                             ),
                         ),

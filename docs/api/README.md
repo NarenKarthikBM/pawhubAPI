@@ -20,11 +20,13 @@
 #### Pet Management
 
 - **[GET /animals/pets/my-pets/](user-pets-list.md)** - List User's Pets
+
   - Get all pets owned by authenticated user
   - Includes pet details, images, and location
   - Requires authentication
 
 - **POST /animals/pets/register/** - Register New Pet
+
   - Add new pet to user's profile
   - Supports breed analysis and location data
 

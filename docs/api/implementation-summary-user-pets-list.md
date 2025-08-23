@@ -77,6 +77,7 @@ def get_user_pets(user):
 ```
 
 **Features**:
+
 - Filters by `owner=user` and `type="pet"` to ensure only the user's pets are returned
 - Uses `prefetch_related("images")` to optimize database queries and avoid N+1 problems
 - Orders results by `-created_at` (newest first)
@@ -125,6 +126,7 @@ class UserPetsListAPI(APIView):
 ```
 
 **Features**:
+
 - Requires authentication using `UserTokenAuthentication`
 - Comprehensive Swagger/OpenAPI documentation with detailed response schemas
 - Proper error handling with appropriate HTTP status codes
@@ -147,6 +149,7 @@ path(
 ### 5. Documentation (`docs/api/user-pets-list.md`)
 
 **Created**: Comprehensive API documentation including:
+
 - Endpoint details and authentication requirements
 - Request/response examples in multiple formats (cURL, Python, JavaScript)
 - Complete field descriptions
@@ -176,45 +179,48 @@ path(
 ## API Response Structure
 
 ### Success Response (200 OK)
+
 ```json
 {
-    "success": true,
-    "pets": [
+  "success": true,
+  "pets": [
+    {
+      "id": 1,
+      "name": "Buddy",
+      "species": "Dog",
+      "breed": "Golden Retriever",
+      "type": "pet",
+      "is_sterilized": true,
+      "images": [
         {
-            "id": 1,
-            "name": "Buddy",
-            "species": "Dog",
-            "breed": "Golden Retriever",
-            "type": "pet",
-            "is_sterilized": true,
-            "images": [
-                {
-                    "id": 1,
-                    "image_url": "https://storage.example.com/pets/buddy1.jpg"
-                }
-            ],
-            "location": {
-                "latitude": 12.9716,
-                "longitude": 77.5946
-            },
-            "created_at": "2023-08-24T10:30:00Z",
-            "updated_at": "2023-08-24T10:30:00Z"
+          "id": 1,
+          "image_url": "https://storage.example.com/pets/buddy1.jpg"
         }
-    ],
-    "count": 1
+      ],
+      "location": {
+        "latitude": 12.9716,
+        "longitude": 77.5946
+      },
+      "created_at": "2023-08-24T10:30:00Z",
+      "updated_at": "2023-08-24T10:30:00Z"
+    }
+  ],
+  "count": 1
 }
 ```
 
 ### Error Response (500 Internal Server Error)
+
 ```json
 {
-    "error": "Failed to retrieve user pets: Database connection error"
+  "error": "Failed to retrieve user pets: Database connection error"
 }
 ```
 
 ## Testing Considerations
 
 The implementation includes comprehensive test cases covering:
+
 - Authenticated user retrieving their pets
 - Unauthenticated access attempts
 - Users with no pets
@@ -233,6 +239,7 @@ The implementation includes comprehensive test cases covering:
 ### Database Relationships
 
 Leverages existing model relationships:
+
 - `AnimalProfileModel.owner` → `CustomUser` (foreign key)
 - `CustomUser.pets` (reverse relationship)
 - `AnimalProfileModel.images` → `AnimalMedia` (many-to-many)

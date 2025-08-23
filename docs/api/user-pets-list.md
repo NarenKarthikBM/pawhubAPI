@@ -35,62 +35,64 @@ Content-Type: application/json
 
 ```json
 {
-    "success": true,
-    "pets": [
+  "success": true,
+  "pets": [
+    {
+      "id": 1,
+      "name": "Buddy",
+      "species": "Dog",
+      "breed": "Golden Retriever",
+      "type": "pet",
+      "is_sterilized": true,
+      "images": [
         {
-            "id": 1,
-            "name": "Buddy",
-            "species": "Dog",
-            "breed": "Golden Retriever",
-            "type": "pet",
-            "is_sterilized": true,
-            "images": [
-                {
-                    "id": 1,
-                    "image_url": "https://storage.example.com/pets/buddy1.jpg"
-                },
-                {
-                    "id": 2,
-                    "image_url": "https://storage.example.com/pets/buddy2.jpg"
-                }
-            ],
-            "location": {
-                "latitude": 12.9716,
-                "longitude": 77.5946
-            },
-            "created_at": "2023-08-24T10:30:00Z",
-            "updated_at": "2023-08-24T10:30:00Z"
+          "id": 1,
+          "image_url": "https://storage.example.com/pets/buddy1.jpg"
         },
         {
-            "id": 2,
-            "name": "Whiskers",
-            "species": "Cat",
-            "breed": "Persian",
-            "type": "pet",
-            "is_sterilized": false,
-            "images": [],
-            "location": null,
-            "created_at": "2023-08-23T15:45:00Z",
-            "updated_at": "2023-08-23T15:45:00Z"
+          "id": 2,
+          "image_url": "https://storage.example.com/pets/buddy2.jpg"
         }
-    ],
-    "count": 2
+      ],
+      "location": {
+        "latitude": 12.9716,
+        "longitude": 77.5946
+      },
+      "created_at": "2023-08-24T10:30:00Z",
+      "updated_at": "2023-08-24T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "name": "Whiskers",
+      "species": "Cat",
+      "breed": "Persian",
+      "type": "pet",
+      "is_sterilized": false,
+      "images": [],
+      "location": null,
+      "created_at": "2023-08-23T15:45:00Z",
+      "updated_at": "2023-08-23T15:45:00Z"
+    }
+  ],
+  "count": 2
 }
 ```
 
 ### Error Responses
 
 #### 401 Unauthorized
+
 ```json
 {
-    "detail": "Authentication credentials were not provided."
+  "detail": "Authentication credentials were not provided."
 }
 ```
 
 #### 500 Internal Server Error
+
 ```json
 {
-    "error": "Failed to retrieve user pets: Database connection error"
+  "error": "Failed to retrieve user pets: Database connection error"
 }
 ```
 
@@ -162,25 +164,25 @@ else:
 
 ```javascript
 const fetchUserPets = async () => {
-    try {
-        const response = await fetch('/api/animals/pets/my-pets/', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Token your_auth_token_here',
-                'Content-Type': 'application/json'
-            }
-        });
+  try {
+    const response = await fetch("/api/animals/pets/my-pets/", {
+      method: "GET",
+      headers: {
+        Authorization: "Token your_auth_token_here",
+        "Content-Type": "application/json",
+      },
+    });
 
-        if (response.ok) {
-            const data = await response.json();
-            console.log(`Found ${data.count} pets:`, data.pets);
-            return data.pets;
-        } else {
-            console.error('Failed to fetch pets:', response.statusText);
-        }
-    } catch (error) {
-        console.error('Error fetching pets:', error);
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`Found ${data.count} pets:`, data.pets);
+      return data.pets;
+    } else {
+      console.error("Failed to fetch pets:", response.statusText);
     }
+  } catch (error) {
+    console.error("Error fetching pets:", error);
+  }
 };
 ```
 
