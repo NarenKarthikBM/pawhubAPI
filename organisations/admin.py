@@ -5,7 +5,9 @@ from .models import (
     Organisation,
     OrganisationAuthTokens,
     OrganisationEmailVerificationToken,
+    OrganisationMissions,
     OrganisationVerification,
+    PetAdoptions,
 )
 
 
@@ -46,3 +48,72 @@ class OrganisationVerificationAdmin(admin.ModelAdmin):
     list_filter = ["submitted_at", "updated_at"]
     search_fields = ["organisation__name", "organisation__email"]
     readonly_fields = ["submitted_at", "updated_at"]
+
+
+@admin.register(OrganisationMissions)
+class OrganisationMissionsAdmin(GISModelAdmin):
+    list_display = [
+        "title",
+        "organisation",
+        "mission_type",
+        "city",
+        "start_datetime",
+        "end_datetime",
+        "is_active",
+    ]
+    list_filter = [
+        "mission_type",
+        "is_active",
+        "city",
+        "start_datetime",
+        "end_datetime",
+    ]
+    search_fields = ["title", "description", "organisation__name", "city", "area"]
+    readonly_fields = ["created_at", "updated_at"]
+    date_hierarchy = "start_datetime"
+    gis_widget_kwargs = {
+        "attrs": {
+            "default_lat": 37.7749,
+            "default_lon": -122.4194,
+            "default_zoom": 12,
+        },
+    }
+
+
+@admin.register(PetAdoptions)
+class PetAdoptionsAdmin(admin.ModelAdmin):
+    list_display = [
+        "animal",
+        "organisation",
+        "adoption_status",
+        "adopted",
+        "adoption_fee",
+        "listed_at",
+    ]
+    list_filter = ["adoption_status", "adopted", "listed_at", "adoption_date"]
+    search_fields = ["animal__name", "organisation__name", "adopter_name"]
+    readonly_fields = ["listed_at", "updated_at"]
+    date_hierarchy = "listed_at"
+
+    fieldsets = (
+        (
+            "Basic Information",
+            {"fields": ("animal", "organisation", "adoption_status", "adopted")},
+        ),
+        (
+            "Adoption Details",
+            {"fields": ("adoption_fee", "special_requirements", "adoption_notes")},
+        ),
+        ("Contact Information", {"fields": ("contact_phone", "contact_email")}),
+        (
+            "Adoption Completion",
+            {
+                "fields": ("adoption_date", "adopter_name", "adopter_contact"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("listed_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
