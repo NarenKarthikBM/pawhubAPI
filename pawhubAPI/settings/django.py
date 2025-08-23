@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "users",
     "organisations",
     "vets",
+    "animals",
 ]
 
 
