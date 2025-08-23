@@ -5,6 +5,8 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PARSER_CLASSES": [
         "pawhubAPI.settings.custom_DRF_settings.parsers.UJSONParser",
+        "rest_framework.parsers.MultiPartParser",
+        "rest_framework.parsers.FormParser",
     ],
     # * Custom authentication class
     "DEFAULT_AUTHENTICATION_CLASSES": [

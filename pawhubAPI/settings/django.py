@@ -52,6 +52,19 @@ MIDDLEWARE = [
 
 AUTH_USER_MODEL = "users.CustomUser"
 
+
+# Swagger settings
+SWAGGER_SETTINGS = {
+    "JSON_EDITOR": True,
+    "SUPPORTED_SUBMIT_METHODS": ["get", "post", "put", "delete", "patch"],
+    "OPERATIONS_SORTER": "alpha",
+    "TAGS_SORTER": "alpha",
+    "DOC_EXPANSION": "none",
+    "DEEP_LINKING": True,
+    "SHOW_EXTENSIONS": True,
+    "DEFAULT_MODEL_RENDERING": "example",
+}
+
 ROOT_URLCONF = "pawhubAPI.urls"
 
 TEMPLATES = [

@@ -441,25 +441,30 @@ class CreateSightingAPI(APIView):
         operation_description="Create a new animal sighting with image upload, ML processing and profile matching",
         operation_summary="Create Animal Sighting",
         tags=["Animal Sightings"],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["image_file", "longitude", "latitude"],
-            properties={
-                "image_file": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    format=openapi.FORMAT_BINARY,
-                    description="Image file to upload (JPG, PNG, GIF, WebP)",
-                ),
-                "longitude": openapi.Schema(
-                    type=openapi.TYPE_NUMBER,
-                    description="Longitude coordinate",
-                ),
-                "latitude": openapi.Schema(
-                    type=openapi.TYPE_NUMBER,
-                    description="Latitude coordinate",
-                ),
-            },
-        ),
+        manual_parameters=[
+            openapi.Parameter(
+                "image_file",
+                openapi.IN_FORM,
+                description="Image file to upload (JPG, PNG, GIF, WebP)",
+                type=openapi.TYPE_FILE,
+                required=True,
+            ),
+            openapi.Parameter(
+                "longitude",
+                openapi.IN_FORM,
+                description="Longitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "latitude",
+                openapi.IN_FORM,
+                description="Latitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+        ],
+        consumes=["multipart/form-data"],
         responses={
             201: openapi.Response(
                 description="Sighting created successfully with matching profiles",
