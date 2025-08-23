@@ -7,7 +7,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from users.authentication import UserTokenAuthentication
+from pawhubAPI.settings.custom_DRF_settings.authentication import (
+    UserTokenAuthentication,
+)
 
 from .models import (
     AnimalProfileModel,
