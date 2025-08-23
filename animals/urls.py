@@ -14,6 +14,11 @@ urlpatterns = [
         name="animal-sightings-list",
     ),
     path(
+        "sightings/nearby/",
+        views.NearbySightingsAPI.as_view(),
+        name="nearby-sightings",
+    ),
+    path(
         "emergencies/",
         views.EmergencyListAPI.as_view(),
         name="emergencies-list",
