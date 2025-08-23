@@ -30,7 +30,7 @@ urlpatterns = [
     ),
     path(
         "emergencies/create/",
-        views.CreateEmergencyAPI.as_view(),
+        views.EmergencyCreateAPI.as_view(),
         name="create-emergency",
     ),
     path(
