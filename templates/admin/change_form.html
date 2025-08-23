@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<script type="text/javascript" src="{% load static %}{% static 'admin/js/gis_map_fix.js' %}"></script>
+<style>
+    /* Additional CSS for better map display */
+    .gis-panel {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .gis-panel .olMap {
+        border: none;
+    }
+    
+    /* Ensure map container has proper dimensions */
+    .gis-panel .olMapViewport {
+        position: relative !important;
+    }
+</style>
+{% endblock %}

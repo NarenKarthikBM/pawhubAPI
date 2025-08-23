@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
 
 from .models import (
     Adoption,
@@ -19,7 +20,7 @@ class AnimalMediaAdmin(admin.ModelAdmin):
 
 
 @admin.register(AnimalProfileModel)
-class AnimalProfileModelAdmin(admin.ModelAdmin):
+class AnimalProfileModelAdmin(GISModelAdmin):
     list_display = (
         "name",
         "species",
@@ -33,26 +34,47 @@ class AnimalProfileModelAdmin(admin.ModelAdmin):
     search_fields = ("name", "species", "breed", "owner__username")
     readonly_fields = ("created_at", "updated_at", "latitude", "longitude")
     filter_horizontal = ("images",)
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,  # Default to San Francisco
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(AnimalSighting)
-class AnimalSightingAdmin(admin.ModelAdmin):
+class AnimalSightingAdmin(GISModelAdmin):
     list_display = ("id", "animal", "reporter", "created_at")
     list_filter = ("created_at",)
     search_fields = ("animal__name", "reporter__username")
     readonly_fields = ("created_at", "latitude", "longitude")
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(Emergency)
-class EmergencyAdmin(admin.ModelAdmin):
+class EmergencyAdmin(GISModelAdmin):
     list_display = ("id", "reporter", "status", "created_at")
     list_filter = ("status", "created_at")
     search_fields = ("reporter__username", "description")
     readonly_fields = ("created_at", "updated_at", "latitude", "longitude")
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(Lost)
-class LostAdmin(admin.ModelAdmin):
+class LostAdmin(GISModelAdmin):
     list_display = ("pet", "status", "last_seen_time", "created_at")
     list_filter = ("status", "created_at", "last_seen_time")
     search_fields = ("pet__name", "description")
@@ -62,6 +84,13 @@ class LostAdmin(admin.ModelAdmin):
         "last_seen_latitude",
         "last_seen_longitude",
     )
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(Adoption)

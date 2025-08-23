@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
 
 from .models import (
     Vet,
@@ -9,7 +10,7 @@ from .models import (
 
 
 @admin.register(Vet)
-class VetAdmin(admin.ModelAdmin):
+class VetAdmin(GISModelAdmin):
     list_display = [
         "name",
         "email",
@@ -22,6 +23,13 @@ class VetAdmin(admin.ModelAdmin):
     list_filter = ["is_verified", "specialization", "date_joined"]
     search_fields = ["name", "email", "license_number", "clinic_name"]
     readonly_fields = ["date_joined", "last_updated_at"]
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(VetAuthTokens)

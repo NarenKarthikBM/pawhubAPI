@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin
 
 from .models import (
     Organisation,
@@ -9,11 +10,18 @@ from .models import (
 
 
 @admin.register(Organisation)
-class OrganisationAdmin(admin.ModelAdmin):
+class OrganisationAdmin(GISModelAdmin):
     list_display = ["name", "email", "is_verified", "date_joined"]
     list_filter = ["is_verified", "date_joined"]
     search_fields = ["name", "email"]
     readonly_fields = ["date_joined", "last_updated_at"]
+    gis_widget_kwargs = {
+        'attrs': {
+            'default_lat': 37.7749,
+            'default_lon': -122.4194,
+            'default_zoom': 12,
+        },
+    }
 
 
 @admin.register(OrganisationAuthTokens)

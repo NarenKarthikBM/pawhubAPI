@@ -55,7 +55,7 @@ ROOT_URLCONF = "pawhubAPI.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": ["/Volumes/Files/Coding/StatusCode2/pawhubAPI/templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -115,6 +115,9 @@ STATIC_ROOT = "/var/www/static"
 MEDIA_ROOT = "/var/www/media"
 
 STATIC_URL = "/static/"
+STATICFILES_DIRS = [
+    "/Volumes/Files/Coding/StatusCode2/pawhubAPI/static",
+]
 # STATIC_ROOT = "static"
 MEDIA_URL = "/media/"
 
@@ -130,3 +133,28 @@ MEDIA_URL = "/media/"
 
 # Custom CORS Configuration (handled by custom middleware)
 # CORS settings are now managed in pawhubAPI.middleware.CorsMiddleware
+
+# GeoDjango and Map Widget Settings
+GEOS_LIBRARY_PATH = None  # Auto-detect GEOS library
+GDAL_LIBRARY_PATH = None  # Auto-detect GDAL library
+
+# Map widget configuration for Django admin
+GEOPOSITION_MAP_OPTIONS = {
+    'minZoom': 3,
+    'maxZoom': 15,
+}
+
+GEOPOSITION_MARKER_OPTIONS = {
+    'cursor': 'move'
+}
+
+# Map widget settings for better admin experience
+MAP_WIDGETS = {
+    "GooglePointFieldWidget": (
+        ("zoom", 15),
+        ("mapCenterLocationName", "san francisco"),
+        ("GooglePlaceAutocompleteOptions", {'componentRestrictions': {'country': 'us'}}),
+        ("markerFitZoom", 12),
+    ),
+    "GOOGLE_MAP_API_KEY": "",  # Set your Google Maps API key if needed
+}
