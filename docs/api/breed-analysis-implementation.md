@@ -22,7 +22,6 @@ This implementation adds breed analysis functionality to the animal sighting sys
 
 #### Updated ML API Endpoint (`animals/utils.py`)
 
-- Changed from `identify-pet` to `identify-species` endpoint
 - Updated function name from `identify_pet_species()` to `identify_animal_species()`
 - The new endpoint should return a response that includes `breed_analysis` field
 

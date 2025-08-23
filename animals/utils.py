@@ -151,7 +151,7 @@ def identify_animal_species(image_url: str) -> Optional[Dict]:
     Returns:
         dict: Species identification results with breed_analysis or None if failed
     """
-    return call_ml_api("identify-species", {"url": image_url})
+    return call_ml_api("identify-pet", {"url": image_url})
 
 
 def generate_image_embedding(image_url: str) -> Optional[List[float]]:
