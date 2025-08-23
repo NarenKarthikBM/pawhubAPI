@@ -142,16 +142,16 @@ def call_ml_api(endpoint: str, data: Dict) -> Optional[Dict]:
         return None
 
 
-def identify_pet_species(image_url: str) -> Optional[Dict]:
-    """Identify pet species from image URL
+def identify_animal_species(image_url: str) -> Optional[Dict]:
+    """Identify animal species and breed analysis from image URL
 
     Args:
         image_url (str): URL of the image
 
     Returns:
-        dict: Species identification results or None if failed
+        dict: Species identification results with breed_analysis or None if failed
     """
-    return call_ml_api("identify-pet", {"url": image_url})
+    return call_ml_api("identify-species", {"url": image_url})
 
 
 def generate_image_embedding(image_url: str) -> Optional[List[float]]:
@@ -208,7 +208,7 @@ def process_image_ml_data(
     """
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         # Submit both API calls concurrently
-        species_future = executor.submit(identify_pet_species, image_url)
+        species_future = executor.submit(identify_animal_species, image_url)
         embedding_future = executor.submit(generate_image_embedding, image_url)
 
         # Get results
@@ -233,18 +233,49 @@ def create_animal_media_with_embedding(
     return AnimalMedia.objects.create(image_url=image_url, embedding=embedding)
 
 
+def calculate_breed_similarity(
+    breed_analysis_1: List[str], breed_analysis_2: List[str]
+) -> float:
+    """Calculate similarity between two breed analysis arrays
+
+    Args:
+        breed_analysis_1 (list): First breed analysis features
+        breed_analysis_2 (list): Second breed analysis features
+
+    Returns:
+        float: Similarity score between 0 and 1
+    """
+    if not breed_analysis_1 or not breed_analysis_2:
+        return 0.0
+
+    # Convert to sets for intersection calculation
+    set1 = set(breed_analysis_1)
+    set2 = set(breed_analysis_2)
+
+    # Calculate Jaccard similarity (intersection over union)
+    intersection = len(set1.intersection(set2))
+    union = len(set1.union(set2))
+
+    if union == 0:
+        return 0.0
+
+    return intersection / union
+
+
 def find_similar_animal_profiles(
     location: Point,
     embedding: List[float],
+    breed_analysis: Optional[List[str]] = None,
     radius_km: int = 10,
     similarity_threshold: float = 0.7,
     limit: int = 10,
 ) -> List[Dict]:
-    """Find similar animal profiles within radius using vector similarity
+    """Find similar animal profiles within radius using vector similarity and breed analysis
 
     Args:
         location (Point): Sighting location
         embedding (list): Image embedding vector
+        breed_analysis (list): Breed analysis features from ML model
         radius_km (int): Search radius in kilometers
         similarity_threshold (float): Minimum similarity score
         limit (int): Maximum number of results
@@ -274,15 +305,30 @@ def find_similar_animal_profiles(
 
             if media_with_embeddings.exists():
                 best_match = media_with_embeddings.first()
-                similarity_score = float(best_match.similarity)
+                image_similarity_score = float(best_match.similarity)
 
-                if similarity_score >= similarity_threshold:
+                # Calculate breed similarity if breed analysis is available
+                breed_similarity_score = 0.0
+                if breed_analysis and profile.breed_analysis:
+                    breed_similarity_score = calculate_breed_similarity(
+                        breed_analysis, profile.breed_analysis
+                    )
+
+                # Combine image similarity and breed similarity
+                # Weight: 70% image similarity, 30% breed similarity
+                combined_similarity = (
+                    0.7 * image_similarity_score + 0.3 * breed_similarity_score
+                )
+
+                if combined_similarity >= similarity_threshold:
                     matching_profiles.append(
                         {
                             "profile": AnimalProfileModelSerializer(
                                 profile
                             ).details_serializer(),
-                            "similarity_score": similarity_score,
+                            "similarity_score": combined_similarity,
+                            "image_similarity": image_similarity_score,
+                            "breed_similarity": breed_similarity_score,
                             "distance_km": float(
                                 profile.location.distance(location).km
                             ),
@@ -290,7 +336,7 @@ def find_similar_animal_profiles(
                         }
                     )
 
-        # Sort by similarity score (descending) and limit results
+        # Sort by combined similarity score (descending) and limit results
         matching_profiles.sort(key=lambda x: x["similarity_score"], reverse=True)
         return matching_profiles[:limit]
 
@@ -300,7 +346,10 @@ def find_similar_animal_profiles(
 
 
 def create_sighting_record(
-    data: Dict, user: CustomUser, animal_media: AnimalMedia
+    data: Dict,
+    user: CustomUser,
+    animal_media: AnimalMedia,
+    breed_analysis: Optional[List[str]] = None,
 ) -> AnimalSighting:
     """Create initial sighting record without animal profile link
 
@@ -308,6 +357,7 @@ def create_sighting_record(
         data (dict): Validated sighting data
         user (CustomUser): Reporter user
         animal_media (AnimalMedia): Associated media object
+        breed_analysis (list): Breed analysis features from ML model
 
     Returns:
         AnimalSighting: Created sighting object
@@ -319,11 +369,15 @@ def create_sighting_record(
         location=location,
         image=animal_media,
         animal=None,  # Will be linked later when user selects/creates profile
+        breed_analysis=breed_analysis or [],
     )
 
 
 def create_stray_animal_profile(
-    data: Dict, location: Point, user: CustomUser
+    data: Dict,
+    location: Point,
+    user: CustomUser,
+    breed_analysis: Optional[List[str]] = None,
 ) -> AnimalProfileModel:
     """Create a new stray animal profile
 
@@ -331,6 +385,7 @@ def create_stray_animal_profile(
         data (dict): Animal profile data
         location (Point): Animal location
         user (CustomUser): User creating the profile
+        breed_analysis (list): Breed analysis features from ML model
 
     Returns:
         AnimalProfileModel: Created animal profile
@@ -342,6 +397,7 @@ def create_stray_animal_profile(
         type="stray",
         location=location,
         owner=None,  # Stray animals don't have owners
+        breed_analysis=breed_analysis or [],
     )
 
 

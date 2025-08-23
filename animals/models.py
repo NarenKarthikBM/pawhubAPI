@@ -91,6 +91,13 @@ class AnimalProfileModel(models.Model):
     breed = models.CharField(
         _("breed"), help_text="Animal Breed", max_length=100, blank=True
     )
+    breed_analysis = models.JSONField(
+        _("breed analysis"),
+        help_text="Unique features of the animal related to breed identification from ML analysis",
+        null=True,
+        blank=True,
+        default=list,
+    )
     is_sterilized = models.BooleanField(
         _("is sterilized"), help_text="Is Sterilized", default=False
     )
@@ -164,6 +171,13 @@ class AnimalSighting(models.Model):
         help_text="User who reported the sighting",
         related_name="reported_sightings",
         related_query_name="reported_sightings",
+    )
+    breed_analysis = models.JSONField(
+        _("breed analysis"),
+        help_text="Unique features of the animal related to breed identification from ML analysis",
+        null=True,
+        blank=True,
+        default=list,
     )
     created_at = models.DateTimeField(
         _("created at"), help_text="Created At", auto_now_add=True

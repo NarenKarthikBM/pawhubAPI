@@ -530,14 +530,19 @@ class CreateSightingAPI(APIView):
             # Create animal media object with embedding
             animal_media = create_animal_media_with_embedding(image_url, embedding)
 
-            # Create sighting record
-            sighting = create_sighting_record(
-                validated_data, request.user, animal_media
+            # Extract breed analysis from species data
+            breed_analysis = (
+                species_data.get("breed_analysis", []) if species_data else []
             )
 
-            # Find similar animal profiles within 10km
+            # Create sighting record with breed analysis
+            sighting = create_sighting_record(
+                validated_data, request.user, animal_media, breed_analysis
+            )
+
+            # Find similar animal profiles within 10km using breed analysis
             matching_profiles = find_similar_animal_profiles(
-                sighting.location, embedding, radius_km=10
+                sighting.location, embedding, breed_analysis, radius_km=10
             )
 
             # Format matching profiles
@@ -670,10 +675,13 @@ class SightingSelectProfileAPI(APIView):
                 message = f"Sighting linked to existing profile '{profile.name}'"
 
             elif validated_data["action"] == "create_new":
-                # Create new stray profile
+                # Create new stray profile with breed analysis from sighting
                 profile_data = validated_data["new_profile_data"]
                 profile = create_stray_animal_profile(
-                    profile_data, sighting.location, request.user
+                    profile_data,
+                    sighting.location,
+                    request.user,
+                    sighting.breed_analysis,
                 )
                 link_sighting_to_profile(sighting, profile)
                 message = (

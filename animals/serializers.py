@@ -72,6 +72,9 @@ class AnimalProfileModelSerializer:
             else None,
             "species": self.obj.species,
             "breed": self.obj.breed,
+            "breed_analysis": self.obj.breed_analysis
+            if hasattr(self.obj, "breed_analysis")
+            else [],
             "is_sterilized": self.obj.is_sterilized,
             "created_at": serialize_datetime(self.obj.created_at),
             "updated_at": serialize_datetime(self.obj.updated_at),
@@ -125,6 +128,9 @@ class AnimalSightingSerializer:
                 "username": self.obj.reporter.username,
                 "name": self.obj.reporter.name,
             },
+            "breed_analysis": self.obj.breed_analysis
+            if hasattr(self.obj, "breed_analysis")
+            else [],
             "created_at": serialize_datetime(self.obj.created_at),
         }
 
