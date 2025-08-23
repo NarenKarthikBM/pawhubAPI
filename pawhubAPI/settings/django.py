@@ -110,8 +110,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.CustomUser"
 
 
-STATIC_URL = "/static/"
-STATIC_ROOT = "static"
+STATIC_ROOT = "/var/www/static"
+MEDIA_ROOT = "/var/www/media"
+
+# STATIC_URL = "/static/"
+# STATIC_ROOT = "static"
 
 
 # STORAGES = {
