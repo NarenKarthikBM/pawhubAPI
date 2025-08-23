@@ -95,6 +95,34 @@ class AnimalProfileModelSerializer:
             "type": self.obj.type,
         }
 
+    def user_pets_serializer(self):
+        """This serializer method serializes pet details for user's pets listing
+
+        Returns:
+            dict: Dictionary of pet details for user listing
+        """
+
+        return {
+            "id": self.obj.id,
+            "name": self.obj.name,
+            "species": self.obj.species,
+            "breed": self.obj.breed,
+            "type": self.obj.type,
+            "is_sterilized": self.obj.is_sterilized,
+            "images": [
+                AnimalMediaSerializer(image).condensed_details_serializer()
+                for image in self.obj.images.all()
+            ],
+            "location": {
+                "latitude": self.obj.latitude,
+                "longitude": self.obj.longitude,
+            }
+            if self.obj.location
+            else None,
+            "created_at": serialize_datetime(self.obj.created_at),
+            "updated_at": serialize_datetime(self.obj.updated_at),
+        }
+
 
 class AnimalSightingSerializer:
     """This serializer class contains serialization methods for AnimalSighting Model"""

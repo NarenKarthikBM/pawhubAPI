@@ -906,3 +906,94 @@ class UploadImageAPI(APIView):
                 {"error": f"Failed to upload image: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class UserPetsListAPI(APIView):
+    """API view to list user's pets
+
+    Methods:
+        GET
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Get list of pets owned by the authenticated user",
+        operation_summary="List User's Pets",
+        tags=["User Pets"],
+        responses={
+            200: openapi.Response(
+                description="Successfully retrieved user's pets",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        "pets": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "species": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "breed": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "type": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_sterilized": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "images": openapi.Schema(
+                                        type=openapi.TYPE_ARRAY,
+                                        items=openapi.Schema(
+                                            type=openapi.TYPE_OBJECT,
+                                            properties={
+                                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                "image_url": openapi.Schema(type=openapi.TYPE_STRING),
+                                            },
+                                        ),
+                                    ),
+                                    "location": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "latitude": openapi.Schema(type=openapi.TYPE_NUMBER),
+                                            "longitude": openapi.Schema(type=openapi.TYPE_NUMBER),
+                                        },
+                                        nullable=True,
+                                    ),
+                                    "created_at": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "updated_at": openapi.Schema(type=openapi.TYPE_STRING),
+                                },
+                            ),
+                        ),
+                        "count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    },
+                ),
+            ),
+            401: openapi.Response(description="Authentication required"),
+            500: openapi.Response(description="Internal server error"),
+        },
+    )
+    def get(self, request):
+        """Get list of pets owned by the authenticated user
+
+        Args:
+            request: HTTP request with authenticated user
+
+        Returns:
+            Response: List of user's pets with count
+        """
+        from .utils import get_user_pets
+
+        try:
+            result = get_user_pets(request.user)
+
+            if result.get("error"):
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve pets: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

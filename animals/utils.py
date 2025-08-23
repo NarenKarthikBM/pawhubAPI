@@ -513,3 +513,33 @@ def upload_pet_image(validated_data, user):
 
     except Exception as e:
         return {"error": f"Failed to upload image: {str(e)}"}
+
+
+def get_user_pets(user):
+    """Get all pets owned by a specific user
+
+    Args:
+        user (CustomUser): The user whose pets to retrieve
+
+    Returns:
+        dict: User's pets with serialized data
+    """
+    try:
+        # Get all pets owned by the user
+        pets = AnimalProfileModel.objects.filter(
+            owner=user, type="pet"
+        ).prefetch_related("images").order_by("-created_at")
+
+        # Serialize pets data
+        pets_data = [
+            AnimalProfileModelSerializer(pet).user_pets_serializer() for pet in pets
+        ]
+
+        return {
+            "success": True,
+            "pets": pets_data,
+            "count": len(pets_data),
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to retrieve user pets: {str(e)}"}

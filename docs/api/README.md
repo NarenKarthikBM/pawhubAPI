@@ -17,6 +17,21 @@
   - Filter by type (pet/stray) and species
   - Paginated results with search capability
 
+#### Pet Management
+
+- **[GET /animals/pets/my-pets/](user-pets-list.md)** - List User's Pets
+  - Get all pets owned by authenticated user
+  - Includes pet details, images, and location
+  - Requires authentication
+
+- **POST /animals/pets/register/** - Register New Pet
+  - Add new pet to user's profile
+  - Supports breed analysis and location data
+
+- **POST /animals/pets/upload-images/** - Upload Pet Images
+  - Add images to existing pet profiles
+  - Supports multiple image uploads
+
 #### Location-Based Services
 
 - **GET /animals/emergencies/nearby/** - Get Nearby Emergencies

@@ -43,4 +43,15 @@ urlpatterns = [
         views.UploadImageAPI.as_view(),
         name="upload-image",
     ),
+    path(
+        "my-pets/",
+        views.UserPetsListAPI.as_view(),
+        name="user-pets-list",
+    ),
 ]
+
+# TODO
+#
+# Lost
+# Adopt
+# Missions
