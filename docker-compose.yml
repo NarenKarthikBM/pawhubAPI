@@ -19,7 +19,7 @@ services:
   web:
     build: .
     restart: always
-    env_file: .env
+    # env_file: .env
     # depends_on:
     #   db:
     #     condition: service_healthy
