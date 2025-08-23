@@ -48,10 +48,14 @@ urlpatterns = [
         views.UserPetsListAPI.as_view(),
         name="user-pets-list",
     ),
+    path(
+        "pets/mark-as-lost/",
+        views.MarkPetAsLostAPI.as_view(),
+        name="mark-pet-as-lost",
+    ),
 ]
 
 # TODO
 #
 # Lost
 # Adopt
-# Missions

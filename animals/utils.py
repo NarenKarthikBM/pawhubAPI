@@ -13,7 +13,7 @@ from users.models import (
 from users.serializers import UserSerializer
 from utils.vultr_storage import upload_image_to_vultr
 
-from .models import AnimalMedia, AnimalProfileModel, AnimalSighting, Emergency
+from .models import AnimalMedia, AnimalProfileModel, AnimalSighting, Emergency, Lost
 from .serializers import AnimalProfileModelSerializer, EmergencySerializer
 
 
@@ -91,6 +91,9 @@ def create_emergency(data, user):
 
         # Create emergency report
         emergency = Emergency.objects.create(
+            emergency_type=data.get(
+                "emergency_type", "injury"
+            ),  # Default to injury if not specified
             reporter=user,
             location=location,
             image=image_media,
@@ -105,6 +108,92 @@ def create_emergency(data, user):
 
     except Exception as e:
         return {"error": f"Failed to create emergency: {str(e)}"}
+
+
+def mark_pet_as_lost(data, user):
+    """Mark a pet as lost and create both a lost report and emergency post
+
+    Args:
+        data (dict): Validated data containing pet_id, description, location, and time
+        user (CustomUser): The pet owner
+
+    Returns:
+        dict: Lost report details and emergency post details or error response
+    """
+    from datetime import datetime
+
+    from .serializers import LostSerializer
+
+    try:
+        # Get the pet and verify ownership
+        pet = AnimalProfileModel.objects.filter(
+            id=data["pet_id"], owner=user, type="pet"
+        ).first()
+
+        if not pet:
+            return {
+                "error": "Pet not found or you don't have permission to mark it as lost"
+            }
+
+        # Check if pet is already marked as lost
+        existing_lost_report = Lost.objects.filter(pet=pet, status="active").first()
+
+        if existing_lost_report:
+            return {"error": "Pet is already marked as lost"}
+
+        # Parse last seen time
+        last_seen_time = datetime.now()
+        if data.get("last_seen_time"):
+            try:
+                last_seen_time = datetime.fromisoformat(
+                    data["last_seen_time"].replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass  # Use current time if parsing fails
+
+        # Create lost report
+        lost_report = Lost.objects.create(
+            pet=pet,
+            description=data["description"],
+            last_seen_time=last_seen_time,
+            status="active",
+        )
+
+        # Set last seen location if provided
+        if data.get("last_seen_longitude") and data.get("last_seen_latitude"):
+            lost_report.set_last_seen_location(
+                data["last_seen_longitude"], data["last_seen_latitude"]
+            )
+            lost_report.save()
+
+        # Get the last uploaded image for the pet
+        last_image = pet.media_files.order_by("-uploaded_at").first()
+
+        # Create emergency post automatically
+        emergency_location = Point(
+            data.get("last_seen_longitude", pet.longitude or 0.0),
+            data.get("last_seen_latitude", pet.latitude or 0.0),
+            srid=4326,
+        )
+
+        emergency = Emergency.objects.create(
+            emergency_type="missing_lost_pet",
+            reporter=user,
+            location=emergency_location,
+            image=last_image,
+            animal=pet,
+            description=f"LOST PET: {pet.name} - {data['description']}",
+            status="active",
+        )
+
+        return {
+            "lost_report": LostSerializer(lost_report).details_serializer(),
+            "emergency_post": EmergencySerializer(emergency).details_serializer(),
+            "message": f"{pet.name} has been marked as lost and an emergency post has been created",
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to mark pet as lost: {str(e)}"}
 
 
 # ML API Configuration

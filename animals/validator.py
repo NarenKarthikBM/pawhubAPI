@@ -29,6 +29,15 @@ class CreateEmergencyInputValidator(GeneralValidator):
         latitude = self.data.get("latitude")
         description = self.data.get("description")
         image_url = self.data.get("image_url")
+        emergency_type = self.data.get("emergency_type")
+
+        # Valid emergency types
+        valid_types = [
+            "injury",
+            "rescue_needed",
+            "aggressive_behavior",
+            "missing_lost_pet",
+        ]
 
         return {
             "longitude": self.validate_data(
@@ -52,7 +61,21 @@ class CreateEmergencyInputValidator(GeneralValidator):
                 self.validate_type("Image URL", image_url, str) if image_url else None,
                 "image_url",
             ),
+            "emergency_type": self.validate_data(
+                emergency_type,
+                self.validate_type("Emergency Type", emergency_type, str)
+                or self.validate_choice("Emergency Type", emergency_type, valid_types)
+                if emergency_type
+                else None,
+                "emergency_type",
+            ),
         }
+
+    def validate_choice(self, field_name, value, choices):
+        """Validate if value is in allowed choices"""
+        if value not in choices:
+            return f"{field_name} must be one of: {', '.join(choices)}"
+        return None
 
 
 class CreateSightingInputValidator(GeneralValidator):
@@ -167,8 +190,8 @@ class RegisterPetInputValidator(GeneralValidator):
     def serialized_data(self):
         name = self.data.get("name")
         species = self.data.get("species")
-        breed = self.data.get("breed", "")
-        is_sterilized = self.data.get("is_sterilized", False)
+        breed = self.data.get("breed")
+        is_sterilized = self.data.get("is_sterilized")
         longitude = self.data.get("longitude")
         latitude = self.data.get("latitude")
 
@@ -187,7 +210,10 @@ class RegisterPetInputValidator(GeneralValidator):
             ),
             "breed": self.validate_data(
                 breed,
-                self.validate_type("Breed", breed, str) if breed else None,
+                self.validate_type("Breed", breed, str)
+                or self.validate_len("Breed", breed, min=0, max=100)
+                if breed
+                else None,
                 "breed",
             ),
             "is_sterilized": self.validate_data(
@@ -210,6 +236,57 @@ class RegisterPetInputValidator(GeneralValidator):
                 if latitude is not None
                 else None,
                 "latitude",
+            ),
+        }
+
+
+class MarkPetAsLostInputValidator(GeneralValidator):
+    def __init__(self, data) -> None:
+        self.data = data
+
+    def serialized_data(self):
+        pet_id = self.data.get("pet_id")
+        description = self.data.get("description")
+        last_seen_longitude = self.data.get("last_seen_longitude")
+        last_seen_latitude = self.data.get("last_seen_latitude")
+        last_seen_time = self.data.get("last_seen_time")
+
+        return {
+            "pet_id": self.validate_data(
+                pet_id,
+                self.validate_type("Pet ID", pet_id, int),
+                "pet_id",
+            ),
+            "description": self.validate_data(
+                description,
+                self.validate_type("Description", description, str)
+                or self.validate_len("Description", description, min=10, max=1000),
+                "description",
+            ),
+            "last_seen_longitude": self.validate_data(
+                last_seen_longitude,
+                self.validate_type(
+                    "Last Seen Longitude", last_seen_longitude, (int, float)
+                )
+                if last_seen_longitude is not None
+                else None,
+                "last_seen_longitude",
+            ),
+            "last_seen_latitude": self.validate_data(
+                last_seen_latitude,
+                self.validate_type(
+                    "Last Seen Latitude", last_seen_latitude, (int, float)
+                )
+                if last_seen_latitude is not None
+                else None,
+                "last_seen_latitude",
+            ),
+            "last_seen_time": self.validate_data(
+                last_seen_time,
+                self.validate_type("Last Seen Time", last_seen_time, str)
+                if last_seen_time
+                else None,
+                "last_seen_time",
             ),
         }
 

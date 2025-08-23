@@ -195,6 +195,7 @@ class EmergencySerializer:
 
         return {
             "id": self.obj.id,
+            "emergency_type": self.obj.emergency_type,
             "reporter": {
                 "id": self.obj.reporter.id,
                 "username": self.obj.reporter.username,
@@ -208,6 +209,11 @@ class EmergencySerializer:
                 self.obj.image
             ).condensed_details_serializer()
             if self.obj.image
+            else None,
+            "animal": AnimalProfileModelSerializer(
+                self.obj.animal
+            ).condensed_details_serializer()
+            if self.obj.animal
             else None,
             "description": self.obj.description,
             "status": self.obj.status,
@@ -224,6 +230,7 @@ class EmergencySerializer:
 
         return {
             "id": self.obj.id,
+            "emergency_type": self.obj.emergency_type,
             "status": self.obj.status,
             "description": self.obj.description[:100] + "..."
             if len(self.obj.description) > 100

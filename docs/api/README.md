@@ -6,16 +6,11 @@
 
 #### Emergency Management
 
-- **[POST /animals/emergencies/](emergency.md)** - Create Emergency Report
+- **[POST /animals/emergencies/create/](emergency.md)** - Create Emergency Report
   - Create new emergency reports with location and description
+  - Supports emergency types: injury, rescue_needed, aggressive_behavior, missing_lost_pet
   - Requires authentication
   - Supports optional image attachment
-
-#### Animal Profiles
-
-- **GET /animals/profiles/** - List Animal Profiles
-  - Filter by type (pet/stray) and species
-  - Paginated results with search capability
 
 #### Pet Management
 
@@ -23,6 +18,13 @@
 
   - Get all pets owned by authenticated user
   - Includes pet details, images, and location
+  - Requires authentication
+
+- **[POST /animals/pets/mark-as-lost/](lost-pets.md)** - Mark Pet as Lost
+
+  - Mark a pet as lost and create emergency post
+  - Automatically uses pet's last uploaded image
+  - Creates both lost report and emergency post
   - Requires authentication
 
 - **POST /animals/pets/register/** - Register New Pet
@@ -33,6 +35,12 @@
 - **POST /animals/pets/upload-images/** - Upload Pet Images
   - Add images to existing pet profiles
   - Supports multiple image uploads
+
+#### Animal Profiles
+
+- **GET /animals/profiles/** - List Animal Profiles
+  - Filter by type (pet/stray) and species
+  - Paginated results with search capability
 
 #### Location-Based Services
 

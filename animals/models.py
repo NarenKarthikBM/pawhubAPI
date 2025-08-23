@@ -217,11 +217,26 @@ class Emergency(models.Model):
         class: details of emergency reports
     """
 
+    EMERGENCY_TYPE_CHOICES = [
+        ("injury", "Injury"),
+        ("rescue_needed", "Rescue Needed"),
+        ("aggressive_behavior", "Aggressive Behavior"),
+        ("missing_lost_pet", "Missing/Lost Pet"),
+    ]
+
     STATUS_CHOICES = [
         ("active", "Active"),
         ("resolved", "Resolved"),
     ]
 
+    emergency_type = models.CharField(
+        _("emergency type"),
+        help_text="Type of Emergency",
+        max_length=20,
+        choices=EMERGENCY_TYPE_CHOICES,
+        default="injury",
+        db_index=True,
+    )
     reporter = models.ForeignKey(
         "users.CustomUser",
         on_delete=models.CASCADE,
@@ -242,6 +257,16 @@ class Emergency(models.Model):
         help_text="Emergency Image",
         related_name="emergencies",
         related_query_name="emergencies",
+        null=True,
+        blank=True,
+    )
+    animal = models.ForeignKey(
+        "animals.AnimalProfileModel",
+        on_delete=models.SET_NULL,
+        verbose_name="animal",
+        help_text="Animal involved in emergency (for lost pets)",
+        related_name="emergency_reports",
+        related_query_name="emergency_reports",
         null=True,
         blank=True,
     )

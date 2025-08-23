@@ -2,12 +2,21 @@
 
 ## Overview
 
-The Emergency API allows users to create emergency reports with location coordinates, descriptions, and optional images.
+The Emergency API allows users to create emergency reports with location coordinates, descriptions, and optional images. The system supports different emergency types for comprehensive animal care management.
+
+## Emergency Types
+
+The system supports the following emergency types:
+
+1. **`injury`** - For animals that are injured and need medical attention (default)
+2. **`rescue_needed`** - For animals that need to be rescued from dangerous situations
+3. **`aggressive_behavior`** - For animals displaying aggressive behavior that poses a risk
+4. **`missing_lost_pet`** - For pets that are missing or lost (automatically set when using the lost pets API)
 
 ## Endpoint
 
 ```
-POST /animals/emergencies/
+POST /api/animals/emergencies/create/
 ```
 
 ## Authentication
@@ -19,6 +28,7 @@ POST /animals/emergencies/
 
 ```json
 {
+  "emergency_type": "injury",
   "longitude": 77.5946,
   "latitude": 12.9716,
   "description": "Injured dog found on the street, needs immediate medical attention",
@@ -34,6 +44,7 @@ POST /animals/emergencies/
 
 ### Optional Fields
 
+- `emergency_type` (string): Type of emergency. Must be one of: `injury`, `rescue_needed`, `aggressive_behavior`, `missing_lost_pet`. Defaults to `injury` if not specified.
 - `image_url` (string): URL of emergency image
 
 ## Response
@@ -44,6 +55,7 @@ POST /animals/emergencies/
 {
   "emergency": {
     "id": 1,
+    "emergency_type": "injury",
     "reporter": {
       "id": 1,
       "username": "user123",
@@ -57,6 +69,7 @@ POST /animals/emergencies/
       "id": 1,
       "image_url": "https://example.com/emergency-image.jpg"
     },
+    "animal": null,
     "description": "Injured dog found on the street, needs immediate medical attention",
     "status": "active",
     "created_at": "2025-08-24T10:30:00Z",

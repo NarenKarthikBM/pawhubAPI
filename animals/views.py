@@ -22,8 +22,8 @@ from .serializers import (
     AnimalSightingSerializer,
     EmergencySerializer,
 )
-from .utils import create_emergency
-from .validator import CreateEmergencyInputValidator
+from .utils import create_emergency, mark_pet_as_lost
+from .validator import CreateEmergencyInputValidator, MarkPetAsLostInputValidator
 
 
 class AnimalProfileListAPI(APIView):
@@ -1009,5 +1009,155 @@ class UserPetsListAPI(APIView):
         except Exception as e:
             return Response(
                 {"error": f"Failed to retrieve pets: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class MarkPetAsLostAPI(APIView):
+    """API view to mark a pet as lost
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Mark a pet as lost and create an emergency post",
+        operation_summary="Mark Pet as Lost",
+        tags=["Lost Pets"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["pet_id", "description"],
+            properties={
+                "pet_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="ID of the pet to mark as lost",
+                ),
+                "description": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Description of the circumstances (minimum 10 characters)",
+                ),
+                "last_seen_longitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Longitude where pet was last seen (optional)",
+                ),
+                "last_seen_latitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Latitude where pet was last seen (optional)",
+                ),
+                "last_seen_time": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_DATETIME,
+                    description="When pet was last seen (ISO format, optional)",
+                ),
+            },
+        ),
+        responses={
+            201: openapi.Response(
+                description="Pet marked as lost successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "lost_report": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "pet": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                "description": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                "last_seen_location": openapi.Schema(
+                                    type=openapi.TYPE_OBJECT
+                                ),
+                                "last_seen_time": openapi.Schema(
+                                    type=openapi.TYPE_STRING
+                                ),
+                                "created_at": openapi.Schema(type=openapi.TYPE_STRING),
+                            },
+                        ),
+                        "emergency_post": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "emergency_type": openapi.Schema(
+                                    type=openapi.TYPE_STRING
+                                ),
+                                "description": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                "location": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                "created_at": openapi.Schema(type=openapi.TYPE_STRING),
+                            },
+                        ),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            ),
+            400: openapi.Response(
+                description="Bad Request - Validation errors",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "error": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            ),
+            401: openapi.Response(description="Unauthorized"),
+            404: openapi.Response(
+                description="Pet not found or permission denied",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "error": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            ),
+            500: openapi.Response(description="Internal Server Error"),
+        },
+    )
+    def post(self, request):
+        """Mark a pet as lost"""
+        if not request.user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            # Validate input data
+            validator = MarkPetAsLostInputValidator(request.data)
+            validated_data = validator.serialized_data()
+
+            if validator.get_errors():
+                return Response(
+                    {"error": validator.get_errors()},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Mark pet as lost
+            result = mark_pet_as_lost(validated_data, request.user)
+
+            if result.get("error"):
+                error_msg = result["error"]
+                if "not found" in error_msg or "permission" in error_msg:
+                    return Response(
+                        {"error": error_msg},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                elif "already marked as lost" in error_msg:
+                    return Response(
+                        {"error": error_msg},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                else:
+                    return Response(
+                        {"error": error_msg},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+
+            return Response(result, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to mark pet as lost: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
