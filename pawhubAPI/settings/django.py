@@ -113,8 +113,9 @@ AUTH_USER_MODEL = "users.CustomUser"
 STATIC_ROOT = "/var/www/static"
 MEDIA_ROOT = "/var/www/media"
 
-# STATIC_URL = "/static/"
+STATIC_URL = "/static/"
 # STATIC_ROOT = "static"
+MEDIA_URL = "/media/"
 
 
 # STORAGES = {
