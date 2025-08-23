@@ -115,9 +115,6 @@ STATIC_ROOT = "/var/www/static"
 MEDIA_ROOT = "/var/www/media"
 
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [
-    "/Volumes/Files/Coding/StatusCode2/pawhubAPI/static",
-]
 # STATIC_ROOT = "static"
 MEDIA_URL = "/media/"
 
@@ -140,20 +137,21 @@ GDAL_LIBRARY_PATH = None  # Auto-detect GDAL library
 
 # Map widget configuration for Django admin
 GEOPOSITION_MAP_OPTIONS = {
-    'minZoom': 3,
-    'maxZoom': 15,
+    "minZoom": 3,
+    "maxZoom": 15,
 }
 
-GEOPOSITION_MARKER_OPTIONS = {
-    'cursor': 'move'
-}
+GEOPOSITION_MARKER_OPTIONS = {"cursor": "move"}
 
 # Map widget settings for better admin experience
 MAP_WIDGETS = {
     "GooglePointFieldWidget": (
         ("zoom", 15),
         ("mapCenterLocationName", "san francisco"),
-        ("GooglePlaceAutocompleteOptions", {'componentRestrictions': {'country': 'us'}}),
+        (
+            "GooglePlaceAutocompleteOptions",
+            {"componentRestrictions": {"country": "us"}},
+        ),
         ("markerFitZoom", 12),
     ),
     "GOOGLE_MAP_API_KEY": "",  # Set your Google Maps API key if needed

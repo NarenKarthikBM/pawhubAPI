@@ -16,10 +16,10 @@ class OrganisationAdmin(GISModelAdmin):
     search_fields = ["name", "email"]
     readonly_fields = ["date_joined", "last_updated_at"]
     gis_widget_kwargs = {
-        'attrs': {
-            'default_lat': 37.7749,
-            'default_lon': -122.4194,
-            'default_zoom': 12,
+        "attrs": {
+            "default_lat": 37.7749,
+            "default_lon": -122.4194,
+            "default_zoom": 12,
         },
     }
 

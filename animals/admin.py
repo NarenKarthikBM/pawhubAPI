@@ -35,10 +35,10 @@ class AnimalProfileModelAdmin(GISModelAdmin):
     readonly_fields = ("created_at", "updated_at", "latitude", "longitude")
     filter_horizontal = ("images",)
     gis_widget_kwargs = {
-        'attrs': {
-            'default_lat': 37.7749,  # Default to San Francisco
-            'default_lon': -122.4194,
-            'default_zoom': 12,
+        "attrs": {
+            "default_lat": 37.7749,  # Default to San Francisco
+            "default_lon": -122.4194,
+            "default_zoom": 12,
         },
     }
 
@@ -50,10 +50,10 @@ class AnimalSightingAdmin(GISModelAdmin):
     search_fields = ("animal__name", "reporter__username")
     readonly_fields = ("created_at", "latitude", "longitude")
     gis_widget_kwargs = {
-        'attrs': {
-            'default_lat': 37.7749,
-            'default_lon': -122.4194,
-            'default_zoom': 12,
+        "attrs": {
+            "default_lat": 37.7749,
+            "default_lon": -122.4194,
+            "default_zoom": 12,
         },
     }
 
@@ -65,10 +65,10 @@ class EmergencyAdmin(GISModelAdmin):
     search_fields = ("reporter__username", "description")
     readonly_fields = ("created_at", "updated_at", "latitude", "longitude")
     gis_widget_kwargs = {
-        'attrs': {
-            'default_lat': 37.7749,
-            'default_lon': -122.4194,
-            'default_zoom': 12,
+        "attrs": {
+            "default_lat": 37.7749,
+            "default_lon": -122.4194,
+            "default_zoom": 12,
         },
     }
 
@@ -85,10 +85,10 @@ class LostAdmin(GISModelAdmin):
         "last_seen_longitude",
     )
     gis_widget_kwargs = {
-        'attrs': {
-            'default_lat': 37.7749,
-            'default_lon': -122.4194,
-            'default_zoom': 12,
+        "attrs": {
+            "default_lat": 37.7749,
+            "default_lon": -122.4194,
+            "default_zoom": 12,
         },
     }
 
