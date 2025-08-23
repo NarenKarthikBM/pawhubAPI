@@ -11,7 +11,7 @@ local_settings.py
 .env.*
 
 # Pipenv
-Pipfile.lock
+# Pipfile.lock - COMMITTED for reproducible builds and faster deployments
 
 # VS Code
 .vscode/
