@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
 # 'django.middleware.csrf.CsrfViewMiddleware',
 MIDDLEWARE = [
+    "pawhubAPI.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -126,3 +127,6 @@ MEDIA_URL = "/media/"
 #         "BACKEND": "django_s3_storage.storage.S3Storage",
 #     },
 # }
+
+# Custom CORS Configuration (handled by custom middleware)
+# CORS settings are now managed in pawhubAPI.middleware.CorsMiddleware
