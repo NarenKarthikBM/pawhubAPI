@@ -1,0 +1,6 @@
+# Main dependencies - managed by Pipfile
+# This file is for GDAL and other system-dependent packages
+# that are difficult to manage via pipenv
+
+# GDAL - install after system GDAL is available
+# Use: pip install --no-binary gdal gdal==$(gdal-config --version)

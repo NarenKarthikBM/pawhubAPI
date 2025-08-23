@@ -14,16 +14,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     proj-bin \
     && rm -rf /var/lib/apt/lists/*
 
-# Ensure GDAL is discoverable (optional on manylinux wheels, safe to keep)
+# Ensure GDAL is discoverable
 ENV GDAL_DATA=/usr/share/gdal
 ENV PROJ_LIB=/usr/share/proj
 
 WORKDIR /app
 
-# Install deps via pipenv into system site-packages
+# Install pipenv first
+RUN pip install --upgrade pip pipenv
+
+# Copy Pipfile and lock file
 COPY Pipfile Pipfile.lock ./
-RUN pip install --upgrade pip pipenv && \
-    pipenv install --deploy --system
+
+# Install most deps via pipenv (excluding GDAL)
+RUN pipenv install --deploy --system
+
+# Install GDAL separately with version matching system GDAL
+RUN GDAL_VERSION=$(gdal-config --version) && \
+    echo "Installing GDAL Python bindings for GDAL $GDAL_VERSION" && \
+    pip install GDAL==$GDAL_VERSION
 
 # Project files
 COPY . .

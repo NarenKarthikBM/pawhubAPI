@@ -4,17 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-djangorestframework = "*"
-django = "*"
-ujson = "*"
-django-environ = "*"
-psycopg2 = "*"
-drf-yasg = "*"
-psycopg2-binary = "*"
-django-extensions = "*"
-sentence-transformers = "*"
-pgvector = "*"
-gdal = "*"
+django = ">=4.2,<5.0"
+djangorestframework = ">=3.14.0"
+ujson = ">=5.0.0"
+django-environ = ">=0.10.0"
+psycopg2-binary = ">=2.9.0"
+drf-yasg = ">=1.21.0"
+django-extensions = ">=3.2.0"
+sentence-transformers = ">=2.2.0"
+pgvector = ">=0.2.0"
 
 [dev-packages]
 

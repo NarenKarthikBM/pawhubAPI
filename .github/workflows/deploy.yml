@@ -50,6 +50,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip pipenv
           pipenv install
+          # Install GDAL separately with version matching system GDAL
+          GDAL_VERSION=$(gdal-config --version)
+          echo "Installing GDAL Python bindings for GDAL $GDAL_VERSION"
+          pipenv run pip install GDAL==$GDAL_VERSION
           pipenv sync --dev
 
       - name: Env for tests
