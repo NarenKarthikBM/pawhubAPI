@@ -1,3 +1,6 @@
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
+from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -5,13 +8,23 @@ from rest_framework.response import Response
 from rest_framework.validators import ValidationError
 from rest_framework.views import APIView
 
-from organisations.models import Organisation, OrganisationVerification
-from organisations.serializers import OrganisationSerializer
+from organisations.models import (
+    Organisation,
+    OrganisationMissions,
+    OrganisationVerification,
+)
+from organisations.serializers import (
+    OrganisationMissionsSerializer,
+    OrganisationSerializer,
+)
 from organisations.utils import authorize_organisation, create_organisation
 from organisations.validator import (
     OrganisationObtainAuthTokenInputValidator,
     OrganisationRegistrationInputValidator,
     OrganisationVerificationInputValidator,
+)
+from pawhubAPI.settings.custom_DRF_settings.authentication import (
+    UserTokenAuthentication,
 )
 
 
@@ -428,3 +441,135 @@ class OrganisationVerificationAPI(APIView):
             {"message": "Verification submitted successfully"},
             status=status.HTTP_201_CREATED,
         )
+
+
+class NearbyMissionsAPI(APIView):
+    """API view to get upcoming and ongoing organisation missions within 20km of given coordinates
+
+    Gets missions that are active and within the date range (upcoming or ongoing)
+    Requires user authentication
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+    permission_classes = []
+
+    @swagger_auto_schema(
+        operation_description="Get upcoming and ongoing organisation missions within 20km of given coordinates",
+        operation_summary="Get Nearby Organisation Missions",
+        tags=["Organisation Missions"],
+        manual_parameters=[
+            openapi.Parameter(
+                "latitude",
+                openapi.IN_QUERY,
+                description="Latitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "longitude",
+                openapi.IN_QUERY,
+                description="Longitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "mission_type",
+                openapi.IN_QUERY,
+                description="Filter by mission type (vaccination, adoption, rescue, awareness, feeding, medical, other)",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="List of nearby organisation missions",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "title": openapi.Schema(type=openapi.TYPE_STRING),
+                            "description": openapi.Schema(type=openapi.TYPE_STRING),
+                            "mission_type": openapi.Schema(type=openapi.TYPE_STRING),
+                            "mission_type_display": openapi.Schema(
+                                type=openapi.TYPE_STRING
+                            ),
+                            "city": openapi.Schema(type=openapi.TYPE_STRING),
+                            "area": openapi.Schema(type=openapi.TYPE_STRING),
+                            "location": openapi.Schema(type=openapi.TYPE_OBJECT),
+                            "start_datetime": openapi.Schema(type=openapi.TYPE_STRING),
+                            "end_datetime": openapi.Schema(type=openapi.TYPE_STRING),
+                            "organisation": openapi.Schema(type=openapi.TYPE_OBJECT),
+                            "contact_phone": openapi.Schema(type=openapi.TYPE_STRING),
+                            "contact_email": openapi.Schema(type=openapi.TYPE_STRING),
+                        },
+                    ),
+                ),
+            ),
+            400: openapi.Response(
+                description="Bad Request - Missing or invalid coordinates"
+            ),
+            401: openapi.Response(
+                description="Unauthorized - Invalid or missing authentication token"
+            ),
+        },
+    )
+    def get(self, request):
+        """Get upcoming and ongoing organisation missions within 20km of given coordinates
+
+        Args:
+            request: HTTP request with latitude and longitude parameters
+
+        Returns:
+            Response: List of nearby organisation missions with organisation details
+        """
+        # Get latitude and longitude from query parameters
+        try:
+            latitude = float(request.query_params.get("latitude"))
+            longitude = float(request.query_params.get("longitude"))
+        except (TypeError, ValueError):
+            return Response(
+                {
+                    "error": "Both latitude and longitude are required and must be valid numbers"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get optional mission type filter
+        mission_type = request.query_params.get("mission_type")
+
+        # Create a point from the coordinates
+        user_location = Point(longitude, latitude, srid=4326)
+
+        # Get current datetime
+        now = timezone.now()
+
+        # Build query filter for missions within 20km
+        query_filter = {
+            "location__distance_lte": (user_location, D(km=20)),
+            "location__isnull": False,  # Only include missions with location data
+            "is_active": True,  # Only active missions
+            "end_datetime__gte": now,  # Mission hasn't ended yet (upcoming or ongoing)
+        }
+
+        # Add mission type filter if provided
+        if mission_type and mission_type in dict(
+            OrganisationMissions.MISSION_TYPE_CHOICES
+        ):
+            query_filter["mission_type"] = mission_type
+
+        # Get missions within 20km that are upcoming or ongoing
+        nearby_missions = (
+            OrganisationMissions.objects.filter(**query_filter)
+            .select_related("organisation")
+            .order_by("start_datetime")
+        )
+
+        # Serialize the data
+        missions_data = [
+            OrganisationMissionsSerializer(mission).details_serializer()
+            for mission in nearby_missions
+        ]
+
+        return Response(missions_data, status=status.HTTP_200_OK)

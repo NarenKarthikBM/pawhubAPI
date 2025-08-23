@@ -18,4 +18,9 @@ urlpatterns = [
         views.OrganisationVerificationAPI.as_view(),
         name="organisation-verification",
     ),
+    path(
+        "missions/nearby/",
+        views.NearbyMissionsAPI.as_view(),
+        name="nearby-missions",
+    ),
 ]
