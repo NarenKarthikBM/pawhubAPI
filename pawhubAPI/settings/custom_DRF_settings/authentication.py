@@ -1,8 +1,8 @@
 from rest_framework import authentication, exceptions
 
-from organisations.models import OrganisationAuthToken
+from organisations.models import OrganisationAuthTokens
 from users.models import UserAuthToken
-from vets.models import VetAuthToken
+from vets.models import VetAuthTokens
 
 
 class UserTokenAuthentication(authentication.BaseAuthentication):
@@ -34,10 +34,10 @@ class OrganisationTokenAuthentication(authentication.BaseAuthentication):
             return None
 
         try:
-            user_auth_token = OrganisationAuthToken.objects.get(
+            user_auth_token = OrganisationAuthTokens.objects.get(
                 auth_token=auth_token, device_token=device_token
             )
-        except OrganisationAuthToken.DoesNotExist:
+        except OrganisationAuthTokens.DoesNotExist:
             raise exceptions.AuthenticationFailed("No such user")
 
         return (user_auth_token.user, None)
@@ -53,10 +53,10 @@ class VetTokenAuthentication(authentication.BaseAuthentication):
             return None
 
         try:
-            user_auth_token = VetAuthToken.objects.get(
+            user_auth_token = VetAuthTokens.objects.get(
                 auth_token=auth_token, device_token=device_token
             )
-        except VetAuthToken.DoesNotExist:
+        except VetAuthTokens.DoesNotExist:
             raise exceptions.AuthenticationFailed("No such user")
 
         return (user_auth_token.user, None)
