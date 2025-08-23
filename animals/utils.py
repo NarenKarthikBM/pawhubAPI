@@ -417,3 +417,99 @@ def link_sighting_to_profile(
     if not sighting.image.animal:
         sighting.image.animal = profile
         sighting.image.save()
+
+
+def register_pet(validated_data, user):
+    """Register a new pet for the authenticated user
+
+    Args:
+        validated_data (dict): Validated pet registration data
+        user (CustomUser): The authenticated user
+
+    Returns:
+        dict: Registration result with pet details or error
+    """
+    try:
+        # Create the pet profile
+        pet = AnimalProfileModel.objects.create(
+            name=validated_data["name"],
+            species=validated_data["species"],
+            breed=validated_data.get("breed", ""),
+            type="pet",  # Always set to pet for registered pets
+            owner=user,
+            is_sterilized=validated_data.get("is_sterilized", False),
+        )
+
+        # Set location if provided
+        longitude = validated_data.get("longitude")
+        latitude = validated_data.get("latitude")
+        if longitude is not None and latitude is not None:
+            pet.set_location(longitude, latitude)
+            pet.save()
+
+        return {
+            "success": True,
+            "pet": AnimalProfileModelSerializer(pet).details_serializer(),
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to register pet: {str(e)}"}
+
+
+def upload_pet_image(validated_data, user):
+    """Upload an image for a pet
+
+    Args:
+        validated_data (dict): Validated image upload data
+        user (CustomUser): The authenticated user
+
+    Returns:
+        dict: Upload result with image details or error
+    """
+    try:
+        image_file = validated_data["image_file"]
+        animal_id = validated_data.get("animal_id")
+
+        # Upload image to Vultr storage
+        upload_result = upload_image_to_vultr(image_file)
+
+        if not upload_result.get("success"):
+            return {"error": "Failed to upload image to storage"}
+
+        image_url = upload_result["url"]
+
+        # Create AnimalMedia object
+        animal_media = AnimalMedia.objects.create(
+            image_url=image_url,
+        )
+
+        # If animal_id is provided, link the image to that animal
+        if animal_id:
+            try:
+                animal = AnimalProfileModel.objects.get(
+                    id=animal_id,
+                    owner=user,  # Ensure user owns the animal
+                )
+                animal_media.animal = animal
+                animal_media.save()
+
+                # Add the media to the animal's images
+                animal.images.add(animal_media)
+
+            except AnimalProfileModel.DoesNotExist:
+                # If animal doesn't exist or user doesn't own it,
+                # still return the uploaded image but without linking
+                pass
+
+        return {
+            "success": True,
+            "image": {
+                "id": animal_media.id,
+                "image_url": animal_media.image_url,
+                "animal_id": animal_media.animal.id if animal_media.animal else None,
+                "uploaded_at": animal_media.uploaded_at.isoformat(),
+            },
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to upload image: {str(e)}"}

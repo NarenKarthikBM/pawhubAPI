@@ -29,8 +29,18 @@ urlpatterns = [
         name="nearby-emergencies",
     ),
     path(
-        "emergencies/",
-        views.EmergencyCreateAPI.as_view(),
-        name="emergency-create",
+        "emergencies/create/",
+        views.CreateEmergencyAPI.as_view(),
+        name="create-emergency",
+    ),
+    path(
+        "pets/register/",
+        views.RegisterPetAPI.as_view(),
+        name="register-pet",
+    ),
+    path(
+        "pets/upload-images/",
+        views.UploadImageAPI.as_view(),
+        name="upload-image",
     ),
 ]

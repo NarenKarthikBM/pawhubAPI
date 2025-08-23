@@ -158,3 +158,103 @@ class SightingSelectProfileInputValidator(GeneralValidator):
                 "breed",
             ),
         }
+
+
+class RegisterPetInputValidator(GeneralValidator):
+    def __init__(self, data) -> None:
+        self.data = data
+
+    def serialized_data(self):
+        name = self.data.get("name")
+        species = self.data.get("species")
+        breed = self.data.get("breed", "")
+        is_sterilized = self.data.get("is_sterilized", False)
+        longitude = self.data.get("longitude")
+        latitude = self.data.get("latitude")
+
+        return {
+            "name": self.validate_data(
+                name,
+                self.validate_type("Name", name, str)
+                or self.validate_len("Name", name, min=1, max=255),
+                "name",
+            ),
+            "species": self.validate_data(
+                species,
+                self.validate_type("Species", species, str)
+                or self.validate_len("Species", species, min=1, max=100),
+                "species",
+            ),
+            "breed": self.validate_data(
+                breed,
+                self.validate_type("Breed", breed, str) if breed else None,
+                "breed",
+            ),
+            "is_sterilized": self.validate_data(
+                is_sterilized,
+                self.validate_type("Is Sterilized", is_sterilized, bool)
+                if is_sterilized is not None
+                else None,
+                "is_sterilized",
+            ),
+            "longitude": self.validate_data(
+                longitude,
+                self.validate_type("Longitude", longitude, (int, float))
+                if longitude is not None
+                else None,
+                "longitude",
+            ),
+            "latitude": self.validate_data(
+                latitude,
+                self.validate_type("Latitude", latitude, (int, float))
+                if latitude is not None
+                else None,
+                "latitude",
+            ),
+        }
+
+
+class UploadImageInputValidator(GeneralValidator):
+    def __init__(self, data) -> None:
+        self.data = data
+
+    def serialized_data(self):
+        image_file = self.data.get("image_file")
+        animal_id = self.data.get("animal_id")
+
+        return {
+            "image_file": self.validate_data(
+                image_file,
+                self.validate_file("Image File", image_file),
+                "image_file",
+            ),
+            "animal_id": self.validate_data(
+                animal_id,
+                self.validate_type("Animal ID", animal_id, int)
+                if animal_id is not None
+                else None,
+                "animal_id",
+            ),
+        }
+
+    def validate_file(self, field_name, file):
+        """Validate uploaded file"""
+        if not file:
+            return f"{field_name} is required"
+
+        # Check if it's a file object
+        if not hasattr(file, "read") or not hasattr(file, "size"):
+            return f"{field_name} must be a valid file"
+
+        # Check file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if file.size > max_size:
+            return f"{field_name} size must be less than 10MB"
+
+        # Check file type
+        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+        content_type = getattr(file, "content_type", "")
+        if content_type and content_type not in allowed_types:
+            return f"{field_name} must be a valid image file (JPEG, PNG, WEBP)"
+
+        return None

@@ -704,3 +704,205 @@ class SightingSelectProfileAPI(APIView):
                 {"error": f"Failed to link sighting: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class RegisterPetAPI(APIView):
+    """API view to register a new pet for the authenticated user
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Register a new pet for the authenticated user",
+        operation_summary="Register Pet",
+        tags=["Pet Registration"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["name", "species"],
+            properties={
+                "name": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Pet name",
+                    max_length=255,
+                    example="Buddy",
+                ),
+                "species": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Pet species",
+                    max_length=100,
+                    example="Dog",
+                ),
+                "breed": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Pet breed (optional)",
+                    max_length=100,
+                    example="Golden Retriever",
+                ),
+                "is_sterilized": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    description="Whether the pet is sterilized",
+                    default=False,
+                    example=True,
+                ),
+                "longitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Longitude coordinate (optional)",
+                    example=-122.4194,
+                ),
+                "latitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Latitude coordinate (optional)",
+                    example=37.7749,
+                ),
+            },
+        ),
+        responses={
+            201: openapi.Response(
+                description="Pet registered successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "pet": {
+                            "id": 1,
+                            "name": "Buddy",
+                            "species": "Dog",
+                            "breed": "Golden Retriever",
+                            "type": "pet",
+                            "is_sterilized": True,
+                            "owner": {
+                                "id": 1,
+                                "username": "user123",
+                                "name": "John Doe",
+                            },
+                            "location": {"latitude": 37.7749, "longitude": -122.4194},
+                            "created_at": "2023-01-01T12:00:00Z",
+                        },
+                    }
+                },
+            ),
+            400: openapi.Response(
+                description="Validation error",
+                examples={"application/json": {"error": "Name is required"}},
+            ),
+            401: openapi.Response(
+                description="Authentication required",
+                examples={
+                    "application/json": {
+                        "error": "Authentication credentials were not provided"
+                    }
+                },
+            ),
+        },
+    )
+    def post(self, request):
+        from .utils import register_pet
+        from .validator import RegisterPetInputValidator
+
+        try:
+            # Validate input data
+            validated_data = RegisterPetInputValidator(request.data).serialized_data()
+
+            # Register the pet
+            result = register_pet(validated_data, request.user)
+
+            if result.get("error"):
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to register pet: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class UploadImageAPI(APIView):
+    """API view to upload images for pets
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @swagger_auto_schema(
+        operation_description="Upload an image for a pet or standalone image",
+        operation_summary="Upload Pet Image",
+        tags=["Pet Images"],
+        manual_parameters=[
+            openapi.Parameter(
+                "image_file",
+                openapi.IN_FORM,
+                description="Image file to upload (JPEG, PNG, WEBP, max 10MB)",
+                type=openapi.TYPE_FILE,
+                required=True,
+            ),
+            openapi.Parameter(
+                "animal_id",
+                openapi.IN_FORM,
+                description="Animal ID to link the image to (optional)",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+        ],
+        responses={
+            201: openapi.Response(
+                description="Image uploaded successfully",
+                examples={
+                    "application/json": {
+                        "success": True,
+                        "image": {
+                            "id": 1,
+                            "image_url": "https://storage.vultr.com/bucket/image123.jpg",
+                            "animal_id": 1,
+                            "uploaded_at": "2023-01-01T12:00:00Z",
+                        },
+                    }
+                },
+            ),
+            400: openapi.Response(
+                description="Validation error",
+                examples={"application/json": {"error": "Image File is required"}},
+            ),
+            401: openapi.Response(
+                description="Authentication required",
+                examples={
+                    "application/json": {
+                        "error": "Authentication credentials were not provided"
+                    }
+                },
+            ),
+        },
+    )
+    def post(self, request):
+        from .utils import upload_pet_image
+        from .validator import UploadImageInputValidator
+
+        try:
+            # Validate input data
+            validated_data = UploadImageInputValidator(request.data).serialized_data()
+
+            # Upload the image
+            result = upload_pet_image(validated_data, request.user)
+
+            if result.get("error"):
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to upload image: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
