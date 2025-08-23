@@ -4,6 +4,7 @@ from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +22,8 @@ from .serializers import (
     AnimalSightingSerializer,
     EmergencySerializer,
 )
+from .utils import create_emergency
+from .validator import CreateEmergencyInputValidator
 
 
 class AnimalProfileListAPI(APIView):
@@ -329,3 +332,362 @@ class NearbyEmergenciesAPI(APIView):
         ]
 
         return Response(emergencies_data, status=status.HTTP_200_OK)
+
+
+class EmergencyCreateAPI(APIView):
+    """API view to create emergency reports
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Create a new emergency report",
+        operation_summary="Create Emergency Report",
+        tags=["Emergencies"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "longitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Emergency location longitude coordinate",
+                ),
+                "latitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Emergency location latitude coordinate",
+                ),
+                "description": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Description of the emergency (minimum 10 characters)",
+                    min_length=10,
+                ),
+                "image_url": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Optional URL of emergency image",
+                    nullable=True,
+                ),
+            },
+            required=["longitude", "latitude", "description"],
+        ),
+        responses={
+            201: openapi.Response(
+                description="Emergency created successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "emergency": openapi.Schema(type=openapi.TYPE_OBJECT),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            ),
+            400: openapi.Response(description="Bad Request - Invalid input data"),
+            401: openapi.Response(description="Unauthorized - Authentication required"),
+        },
+    )
+    def post(self, request):
+        """Create a new emergency report
+
+        Args:
+            request: HTTP request with emergency data
+
+        Returns:
+            Response: Created emergency details or error
+        """
+        try:
+            # Validate input data
+            validated_data = CreateEmergencyInputValidator(
+                request.data
+            ).serialized_data()
+
+            # Create emergency using utility function
+            result = create_emergency(validated_data, request.user)
+
+            # Check if emergency creation was successful
+            if "error" in result:
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(result, status=status.HTTP_201_CREATED)
+
+        except Exception:
+            return Response(
+                {"error": "Failed to create emergency report"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class CreateSightingAPI(APIView):
+    """API view to create a new animal sighting
+
+    This is the main endpoint for the sighting workflow:
+    1. Upload image file + location
+    2. Upload image to Vultr Object Storage
+    3. Process with ML APIs (species identification + embedding)
+    4. Find matching animal profiles within 10km
+    5. Return matches for user selection
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @swagger_auto_schema(
+        operation_description="Create a new animal sighting with image upload, ML processing and profile matching",
+        operation_summary="Create Animal Sighting",
+        tags=["Animal Sightings"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["image_file", "longitude", "latitude"],
+            properties={
+                "image_file": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_BINARY,
+                    description="Image file to upload (JPG, PNG, GIF, WebP)",
+                ),
+                "longitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Longitude coordinate",
+                ),
+                "latitude": openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description="Latitude coordinate",
+                ),
+            },
+        ),
+        responses={
+            201: openapi.Response(
+                description="Sighting created successfully with matching profiles",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "sighting": openapi.Schema(type=openapi.TYPE_OBJECT),
+                        "ml_species_identification": openapi.Schema(
+                            type=openapi.TYPE_OBJECT
+                        ),
+                        "matching_profiles": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT),
+                        ),
+                        "profile_selection_required": openapi.Schema(
+                            type=openapi.TYPE_BOOLEAN
+                        ),
+                    },
+                ),
+            ),
+            400: openapi.Response(
+                description="Invalid input data or file upload error"
+            ),
+        },
+    )
+    def post(self, request):
+        try:
+            # Import utilities here to avoid circular imports
+            from .serializers import SightingMatchSerializer, SightingSerializer
+            from .utils import (
+                create_animal_media_with_embedding,
+                create_sighting_record,
+                find_similar_animal_profiles,
+                upload_and_process_image,
+            )
+            from .validator import CreateSightingInputValidator
+
+            # Validate input data (now includes file validation)
+            validated_data = CreateSightingInputValidator(
+                request.data
+            ).serialized_data()
+
+            # Upload image to Vultr Object Storage and process with ML APIs
+            image_url, species_data, embedding = upload_and_process_image(
+                validated_data["image_file"]
+            )
+
+            # Handle upload or ML API failures
+            if not image_url:
+                return Response(
+                    {"error": "Image upload failed. Please try again."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not embedding:
+                return Response(
+                    {
+                        "error": "Failed to process image. Please ensure the image is a valid animal photo."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Create animal media object with embedding
+            animal_media = create_animal_media_with_embedding(image_url, embedding)
+
+            # Create sighting record
+            sighting = create_sighting_record(
+                validated_data, request.user, animal_media
+            )
+
+            # Find similar animal profiles within 10km
+            matching_profiles = find_similar_animal_profiles(
+                sighting.location, embedding, radius_km=10
+            )
+
+            # Format matching profiles
+            formatted_matches = SightingMatchSerializer.format_matching_profiles(
+                matching_profiles
+            )
+
+            # Serialize response
+            serializer = SightingSerializer(sighting)
+            response_data = serializer.sighting_with_matches_serializer(
+                formatted_matches, species_data
+            )
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to create sighting: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class SightingSelectProfileAPI(APIView):
+    """API view to link a sighting to an animal profile
+
+    This endpoint handles the final step of the sighting workflow:
+    - User selects an existing matching profile, OR
+    - User creates a new stray animal profile
+    - Sighting gets linked to the selected/created profile
+
+    Methods:
+        POST
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Link sighting to existing profile or create new stray profile",
+        operation_summary="Select/Create Profile for Sighting",
+        tags=["Animal Sightings"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["sighting_id", "action"],
+            properties={
+                "sighting_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="ID of the sighting to link",
+                ),
+                "action": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    enum=["select_existing", "create_new"],
+                    description="Action to take: select existing profile or create new",
+                ),
+                "profile_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="ID of existing profile (required if action=select_existing)",
+                ),
+                "new_profile_data": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    description="New profile data (required if action=create_new)",
+                    properties={
+                        "name": openapi.Schema(type=openapi.TYPE_STRING),
+                        "species": openapi.Schema(type=openapi.TYPE_STRING),
+                        "breed": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                description="Sighting linked successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                        "sighting": openapi.Schema(type=openapi.TYPE_OBJECT),
+                        "animal_profile": openapi.Schema(type=openapi.TYPE_OBJECT),
+                    },
+                ),
+            ),
+            400: openapi.Response(description="Invalid input data"),
+            404: openapi.Response(description="Sighting or profile not found"),
+        },
+    )
+    def post(self, request):
+        try:
+            # Import utilities here to avoid circular imports
+            from .utils import create_stray_animal_profile, link_sighting_to_profile
+            from .validator import SightingSelectProfileInputValidator
+
+            # Validate input data
+            validated_data = SightingSelectProfileInputValidator(
+                request.data
+            ).serialized_data()
+
+            # Get sighting object
+            try:
+                sighting = AnimalSighting.objects.get(
+                    id=validated_data["sighting_id"], reporter=request.user
+                )
+            except AnimalSighting.DoesNotExist:
+                return Response(
+                    {
+                        "error": "Sighting not found or you don't have permission to modify it"
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Check if sighting is already linked
+            if sighting.animal:
+                return Response(
+                    {"error": "Sighting is already linked to an animal profile"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Handle action: select existing or create new
+            if validated_data["action"] == "select_existing":
+                # Link to existing profile
+                try:
+                    profile = AnimalProfileModel.objects.get(
+                        id=validated_data["profile_id"]
+                    )
+                except AnimalProfileModel.DoesNotExist:
+                    return Response(
+                        {"error": "Animal profile not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
+                link_sighting_to_profile(sighting, profile)
+                message = f"Sighting linked to existing profile '{profile.name}'"
+
+            elif validated_data["action"] == "create_new":
+                # Create new stray profile
+                profile_data = validated_data["new_profile_data"]
+                profile = create_stray_animal_profile(
+                    profile_data, sighting.location, request.user
+                )
+                link_sighting_to_profile(sighting, profile)
+                message = (
+                    f"New stray animal profile '{profile.name}' created and linked"
+                )
+
+            # Serialize response
+            response_data = {
+                "message": message,
+                "sighting": AnimalSightingSerializer(sighting).details_serializer(),
+                "animal_profile": AnimalProfileModelSerializer(
+                    profile
+                ).details_serializer(),
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to link sighting: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

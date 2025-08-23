@@ -1,5 +1,7 @@
 from .env import env
 
+# Import Vultr Object Storage settings
+
 # setup()
 
 # SITE_ROOT = root()

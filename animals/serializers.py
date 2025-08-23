@@ -300,3 +300,87 @@ class AdoptionSerializer:
             "status": self.obj.status,
             "created_at": serialize_datetime(self.obj.created_at),
         }
+
+
+class SightingSerializer:
+    """This serializer class contains serialization methods for sighting workflow"""
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def sighting_details_serializer(self):
+        """Serialize sighting details for the create workflow
+
+        Returns:
+            dict: Sighting details with ML processing results
+        """
+        return {
+            "id": self.obj.id,
+            "location": {
+                "latitude": self.obj.latitude,
+                "longitude": self.obj.longitude,
+            },
+            "image": AnimalMediaSerializer(self.obj.image).details_serializer(),
+            "reporter": {
+                "id": self.obj.reporter.id,
+                "username": self.obj.reporter.username,
+                "name": self.obj.reporter.name,
+            },
+            "created_at": serialize_datetime(self.obj.created_at),
+            "status": "pending_profile_selection",
+        }
+
+    def sighting_with_matches_serializer(self, matching_profiles, species_data):
+        """Serialize sighting with matching profiles and ML data
+
+        Args:
+            matching_profiles (list): List of similar animal profiles
+            species_data (dict): Species identification results from ML API
+
+        Returns:
+            dict: Complete sighting data with matches
+        """
+        return {
+            "sighting": self.sighting_details_serializer(),
+            "ml_species_identification": species_data,
+            "matching_profiles": matching_profiles,
+            "profile_selection_required": True,
+        }
+
+
+class SightingMatchSerializer:
+    """This serializer class formats animal profile matches for sighting workflow"""
+
+    @staticmethod
+    def format_matching_profiles(matching_profiles):
+        """Format matching profiles for frontend display
+
+        Args:
+            matching_profiles (list): List of matching profile data
+
+        Returns:
+            list: Formatted profile matches
+        """
+        formatted_matches = []
+
+        for match in matching_profiles:
+            formatted_matches.append(
+                {
+                    "profile_id": match["profile"]["id"],
+                    "animal_name": match["profile"]["name"],
+                    "species": match["profile"]["species"],
+                    "breed": match["profile"]["breed"],
+                    "type": match["profile"]["type"],
+                    "similarity_score": round(match["similarity_score"], 3),
+                    "distance_km": round(match["distance_km"], 2),
+                    "matching_image_url": match["matching_image_url"],
+                    "location": match["profile"]["location"],
+                    "confidence": "high"
+                    if match["similarity_score"] > 0.8
+                    else "medium"
+                    if match["similarity_score"] > 0.7
+                    else "low",
+                }
+            )
+
+        return formatted_matches
