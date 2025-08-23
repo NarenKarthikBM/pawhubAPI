@@ -8,6 +8,6 @@ REST_FRAMEWORK = {
     ],
     # * Custom authentication class
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "pawhubAPI.settings.custom_DRF_settings.authentication.TokenAuthentication",
+        "pawhubAPI.settings.custom_DRF_settings.authentication.UserTokenAuthentication",
     ],
 }
