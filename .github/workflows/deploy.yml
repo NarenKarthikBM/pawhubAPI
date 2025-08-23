@@ -95,7 +95,7 @@ jobs:
           script_stop: true
           script: |
             set -e
-            cd /pawhubAPI/pawhubAPI
+            cd /home/deployer/pawhubAPI/pawhubAPI
 
             # Update compose files in case they changed (pull latest repo)
             if [ -d .git ]; then
