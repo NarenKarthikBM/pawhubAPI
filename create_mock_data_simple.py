@@ -45,7 +45,7 @@ from animals.models import (
 
 # Import ML utilities for similarity matching
 from animals.utils import find_similar_animal_profiles, upload_and_process_image
-from organisations.models import OrganisationModel
+from organisations.models import Organisation
 from users.models import CustomUser
 
 
@@ -106,7 +106,7 @@ class MockDataCreator:
             lat = 22.9641 + random.uniform(-0.1, 0.1)
             lng = 88.5324 + random.uniform(-0.1, 0.1)
             
-            org = OrganisationModel.objects.create(
+            org = Organisation.objects.create(
                 name=name,
                 email=f"contact@{name.lower().replace(' ', '').replace('_', '')}org.com",
                 phone=f"+91{random.randint(7000000000, 9999999999)}",
@@ -413,7 +413,7 @@ class MockDataCreator:
             print("\n" + "=" * 60)
             print("🎉 Mock data creation completed successfully!")
             print(f"👥 Users: {len(users)}")
-            print(f"🏢 Organisations: {len(organisations)}")
+            print(f"🏢 Organisation: {len(organisations)}")
             print(f"🐕 Animals: {len(animals)}")
             print(f"👁️  Sightings: {len(sightings)}")
             print(f"🚨 Emergencies: {len(emergencies)}")
