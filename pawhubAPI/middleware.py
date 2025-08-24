@@ -57,12 +57,12 @@ class CorsMiddleware:
             "DELETE, GET, OPTIONS, PATCH, POST, PUT"
         )
         response["Access-Control-Allow-Headers"] = (
-            "accept, accept-encoding, authorization, content-type, dnt, "
+            "accept, accept-encoding, authorization, device-token, content-type, dnt, "
             "origin, user-agent, x-csrftoken, x-requested-with, "
             "cache-control, x-api-key, x-device-token"
         )
         response["Access-Control-Expose-Headers"] = (
-            "content-type, x-api-key, authorization"
+            "content-type, x-api-key, authorization, device-token"
         )
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Max-Age"] = "86400"
