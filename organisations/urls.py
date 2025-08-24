@@ -33,4 +33,9 @@ urlpatterns = [
         views.NearbySightingsAndEmergenciesAPI.as_view(),
         name="nearby-sightings-emergencies",
     ),
+    path(
+        "dashboard/stats/",
+        views.OrganisationDashboardStatsAPI.as_view(),
+        name="organisation-dashboard-stats",
+    ),
 ]

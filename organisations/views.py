@@ -965,3 +965,186 @@ class OrganisationMissionsListAPI(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class OrganisationDashboardStatsAPI(APIView):
+    """API view to get dashboard statistics for an organisation
+
+    Methods:
+        GET
+    """
+
+    authentication_classes = [OrganisationTokenAuthentication]
+    permission_classes = []
+
+    @swagger_auto_schema(
+        operation_description="Get dashboard statistics for the authenticated organisation including missions, adoption listings, nearby sightings and emergencies",
+        operation_summary="Get Organisation Dashboard Statistics",
+        tags=["Organisation Dashboard"],
+        responses={
+            200: openapi.Response(
+                description="Dashboard statistics retrieved successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                        "stats": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "missions": openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "total": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "active": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "upcoming": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "completed": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    },
+                                ),
+                                "adoptions": openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "total_listings": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "active_listings": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "completed_adoptions": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    },
+                                ),
+                                "nearby_activity": openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "sightings_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "emergencies_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "active_emergencies": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    },
+                                ),
+                                "recent_activity": openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "recent_missions": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "recent_sightings": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                        "recent_emergencies": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    },
+                                ),
+                            },
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response(description="Authentication credentials were not provided"),
+        },
+    )
+    def get(self, request):
+        """Get comprehensive dashboard statistics for the organisation"""
+        try:
+            organisation = request.user
+            current_time = timezone.now()
+            
+            # Calculate date ranges for recent activity (last 7 days)
+            seven_days_ago = current_time - timezone.timedelta(days=7)
+            
+            # Mission Statistics
+            all_missions = OrganisationMissions.objects.filter(organisation=organisation)
+            total_missions = all_missions.count()
+            
+            # Active missions (ongoing)
+            active_missions = all_missions.filter(
+                start_datetime__lte=current_time,
+                end_datetime__gte=current_time,
+                is_active=True
+            ).count()
+            
+            # Upcoming missions
+            upcoming_missions = all_missions.filter(
+                start_datetime__gt=current_time,
+                is_active=True
+            ).count()
+            
+            # Completed missions
+            completed_missions = all_missions.filter(
+                end_datetime__lt=current_time
+            ).count()
+            
+            # Adoption Statistics
+            from organisations.models import PetAdoptions
+            
+            all_adoptions = PetAdoptions.objects.filter(organisation=organisation)
+            total_adoption_listings = all_adoptions.count()
+            active_adoption_listings = all_adoptions.filter(is_adopted=False).count()
+            completed_adoptions = all_adoptions.filter(is_adopted=True).count()
+            
+            # Nearby Activity Statistics (within 20km of organisation location)
+            sightings_count = 0
+            emergencies_count = 0
+            active_emergencies_count = 0
+            
+            if organisation.location:
+                # Get nearby sightings and emergencies within 20km radius
+                nearby_sightings = AnimalSighting.objects.filter(
+                    location__distance_lte=(organisation.location, D(km=20))
+                )
+                sightings_count = nearby_sightings.count()
+                
+                nearby_emergencies = Emergency.objects.filter(
+                    location__distance_lte=(organisation.location, D(km=20))
+                )
+                emergencies_count = nearby_emergencies.count()
+                active_emergencies_count = nearby_emergencies.filter(status="active").count()
+            
+            # Recent Activity Statistics (last 7 days)
+            recent_missions = all_missions.filter(
+                created_at__gte=seven_days_ago
+            ).count()
+            
+            recent_sightings = 0
+            recent_emergencies = 0
+            
+            if organisation.location:
+                recent_sightings = AnimalSighting.objects.filter(
+                    location__distance_lte=(organisation.location, D(km=20)),
+                    created_at__gte=seven_days_ago
+                ).count()
+                
+                recent_emergencies = Emergency.objects.filter(
+                    location__distance_lte=(organisation.location, D(km=20)),
+                    created_at__gte=seven_days_ago
+                ).count()
+            
+            # Compile statistics
+            stats = {
+                "missions": {
+                    "total": total_missions,
+                    "active": active_missions,
+                    "upcoming": upcoming_missions,
+                    "completed": completed_missions,
+                },
+                "adoptions": {
+                    "total_listings": total_adoption_listings,
+                    "active_listings": active_adoption_listings,
+                    "completed_adoptions": completed_adoptions,
+                },
+                "nearby_activity": {
+                    "sightings_count": sightings_count,
+                    "emergencies_count": emergencies_count,
+                    "active_emergencies": active_emergencies_count,
+                },
+                "recent_activity": {
+                    "recent_missions": recent_missions,
+                    "recent_sightings": recent_sightings,
+                    "recent_emergencies": recent_emergencies,
+                },
+            }
+            
+            response_data = {
+                "success": True,
+                "message": "Dashboard statistics retrieved successfully",
+                "stats": stats,
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            response_data = {
+                "success": False,
+                "error": f"Failed to retrieve dashboard statistics: {str(e)}",
+            }
+            return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
