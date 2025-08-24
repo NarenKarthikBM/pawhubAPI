@@ -9,15 +9,13 @@ class UserTokenAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
         auth_token, device_token = (
             request.META.get("HTTP_AUTHORIZATION"),
-            request.META.get("HTTP_DEVICE_TOKEN"),
+            # request.META.get("HTTP_DEVICE_TOKEN"),
         )
-        if not auth_token or not device_token:
+        if not auth_token:
             raise exceptions.AuthenticationFailed("No such user")
 
         try:
-            user_auth_token = UserAuthTokens.objects.get(
-                auth_token=auth_token, device_token=device_token
-            )
+            user_auth_token = UserAuthTokens.objects.get(auth_token=auth_token)
         except UserAuthTokens.DoesNotExist:
             raise exceptions.AuthenticationFailed("No such user")
 
