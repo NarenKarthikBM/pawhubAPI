@@ -107,3 +107,32 @@ class OrganisationMissionsSerializer:
                 self.obj.organisation
             ).condensed_details_serializer(),
         }
+
+    def organisation_owned_missions_serializer(self):
+        """This serializer method serializes mission details for organisation's own missions
+
+        Returns:
+            dict: Dictionary of mission details without organisation info
+        """
+
+        return {
+            "id": self.obj.id,
+            "title": self.obj.title,
+            "description": self.obj.description,
+            "mission_type": self.obj.mission_type,
+            "mission_type_display": self.obj.get_mission_type_display(),
+            "city": self.obj.city,
+            "area": self.obj.area,
+            "location": {
+                "latitude": float(self.obj.location.y) if self.obj.location else None,
+                "longitude": float(self.obj.location.x) if self.obj.location else None,
+            },
+            "start_datetime": serialize_datetime(self.obj.start_datetime),
+            "end_datetime": serialize_datetime(self.obj.end_datetime),
+            "is_active": self.obj.is_active,
+            "max_participants": self.obj.max_participants,
+            "contact_phone": self.obj.contact_phone,
+            "contact_email": self.obj.contact_email,
+            "created_at": serialize_datetime(self.obj.created_at),
+            "updated_at": serialize_datetime(self.obj.updated_at),
+        }

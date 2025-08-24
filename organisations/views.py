@@ -26,6 +26,7 @@ from organisations.validator import (
     OrganisationVerificationInputValidator,
 )
 from pawhubAPI.settings.custom_DRF_settings.authentication import (
+    OrganisationTokenAuthentication,
     UserTokenAuthentication,
 )
 
@@ -737,6 +738,230 @@ class NearbySightingsAndEmergenciesAPI(APIView):
         response_data = {
             "sightings": sightings_data,
             "emergencies": emergencies_data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class OrganisationMissionsListAPI(APIView):
+    """API view to get missions created by an organisation
+
+    Methods:
+        GET
+    """
+
+    authentication_classes = [OrganisationTokenAuthentication]
+    permission_classes = []
+
+    @swagger_auto_schema(
+        operation_description="Get all missions created by the authenticated organisation",
+        operation_summary="Get Organisation's Missions List",
+        tags=["Organisation Missions"],
+        manual_parameters=[
+            openapi.Parameter(
+                "status",
+                openapi.IN_QUERY,
+                description="Filter by mission status (upcoming, ongoing, completed, all)",
+                type=openapi.TYPE_STRING,
+                required=False,
+                enum=["upcoming", "ongoing", "completed", "all"],
+            ),
+            openapi.Parameter(
+                "mission_type",
+                openapi.IN_QUERY,
+                description="Filter by mission type",
+                type=openapi.TYPE_STRING,
+                required=False,
+                enum=[
+                    "vaccination",
+                    "adoption",
+                    "rescue",
+                    "awareness",
+                    "feeding",
+                    "medical",
+                    "other",
+                ],
+            ),
+            openapi.Parameter(
+                "city",
+                openapi.IN_QUERY,
+                description="Filter by city",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description="Number of missions to return (default: 20, max: 100)",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description="Number of missions to skip for pagination",
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="List of organisation missions",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "count": openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            description="Total number of missions",
+                        ),
+                        "missions": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "title": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "description": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "mission_type": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "mission_type_display": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "city": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "area": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "location": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "latitude": openapi.Schema(
+                                                type=openapi.TYPE_NUMBER
+                                            ),
+                                            "longitude": openapi.Schema(
+                                                type=openapi.TYPE_NUMBER
+                                            ),
+                                        },
+                                    ),
+                                    "start_datetime": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "end_datetime": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_active": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "max_participants": openapi.Schema(
+                                        type=openapi.TYPE_INTEGER
+                                    ),
+                                    "contact_phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "contact_email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "updated_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                },
+                            ),
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response(
+                description="Unauthorized - Invalid or missing authentication token"
+            ),
+            400: openapi.Response(description="Bad Request - Invalid parameters"),
+        },
+    )
+    def get(self, request):
+        """Get all missions created by the authenticated organisation
+
+        Args:
+            request: HTTP request with optional filter parameters
+
+        Returns:
+            Response: List of organisation's missions with pagination and filtering
+        """
+        # Get the authenticated organisation
+        organisation = request.user
+
+        # Get filter parameters
+        status_filter = request.query_params.get("status", "all")
+        mission_type = request.query_params.get("mission_type")
+        city = request.query_params.get("city")
+
+        # Get pagination parameters
+        try:
+            limit = min(int(request.query_params.get("limit", 20)), 100)
+            offset = int(request.query_params.get("offset", 0))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "limit and offset must be valid integers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Build base query
+        missions_query = OrganisationMissions.objects.filter(organisation=organisation)
+
+        # Apply status filter
+        now = timezone.now()
+        if status_filter == "upcoming":
+            missions_query = missions_query.filter(
+                start_datetime__gt=now, is_active=True
+            )
+        elif status_filter == "ongoing":
+            missions_query = missions_query.filter(
+                start_datetime__lte=now, end_datetime__gte=now, is_active=True
+            )
+        elif status_filter == "completed":
+            missions_query = missions_query.filter(end_datetime__lt=now)
+        elif status_filter == "all":
+            # No additional filter for "all"
+            pass
+        else:
+            return Response(
+                {
+                    "error": "Invalid status filter. Use: upcoming, ongoing, completed, or all"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Apply mission type filter
+        if mission_type:
+            if mission_type not in dict(OrganisationMissions.MISSION_TYPE_CHOICES):
+                return Response(
+                    {"error": "Invalid mission type"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            missions_query = missions_query.filter(mission_type=mission_type)
+
+        # Apply city filter
+        if city:
+            missions_query = missions_query.filter(city__icontains=city)
+
+        # Get total count before pagination
+        total_count = missions_query.count()
+
+        # Apply ordering and pagination
+        missions = missions_query.order_by("-start_datetime")[offset : offset + limit]
+
+        # Serialize the data
+        missions_data = [
+            OrganisationMissionsSerializer(
+                mission
+            ).organisation_owned_missions_serializer()
+            for mission in missions
+        ]
+
+        response_data = {
+            "count": total_count,
+            "missions": missions_data,
         }
 
         return Response(response_data, status=status.HTTP_200_OK)

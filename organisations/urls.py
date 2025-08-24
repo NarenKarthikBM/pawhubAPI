@@ -19,6 +19,11 @@ urlpatterns = [
         name="organisation-verification",
     ),
     path(
+        "missions/",
+        views.OrganisationMissionsListAPI.as_view(),
+        name="organisation-missions-list",
+    ),
+    path(
         "missions/nearby/",
         views.NearbyMissionsAPI.as_view(),
         name="nearby-missions",

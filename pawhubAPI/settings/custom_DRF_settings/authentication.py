@@ -38,9 +38,9 @@ class OrganisationTokenAuthentication(authentication.BaseAuthentication):
                 auth_token=auth_token, device_token=device_token
             )
         except OrganisationAuthTokens.DoesNotExist:
-            raise exceptions.AuthenticationFailed("No such user")
+            raise exceptions.AuthenticationFailed("No such organisation")
 
-        return (user_auth_token.user, None)
+        return (user_auth_token.organisation, None)
 
 
 class VetTokenAuthentication(authentication.BaseAuthentication):
