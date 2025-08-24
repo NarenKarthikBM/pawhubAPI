@@ -13,8 +13,19 @@ from users.models import (
 from users.serializers import UserSerializer
 from utils.vultr_storage import upload_image_to_vultr
 
-from .models import AnimalMedia, AnimalProfileModel, AnimalSighting, Emergency, Lost
-from .serializers import AnimalProfileModelSerializer, EmergencySerializer
+from .models import (
+    Adoption,
+    AnimalMedia,
+    AnimalProfileModel,
+    AnimalSighting,
+    Emergency,
+    Lost,
+)
+from .serializers import (
+    AdoptionSerializer,
+    AnimalProfileModelSerializer,
+    EmergencySerializer,
+)
 
 
 def generate_tokens():
@@ -634,3 +645,67 @@ def get_user_pets(user):
 
     except Exception as e:
         return {"error": f"Failed to retrieve user pets: {str(e)}"}
+
+
+def get_nearby_adoptions(latitude, longitude, radius_km=20):
+    """Get available adoption listings from organizations within specified radius
+
+    Args:
+        latitude (float): User's latitude coordinate
+        longitude (float): User's longitude coordinate
+        radius_km (int): Search radius in kilometers (default: 20km)
+
+    Returns:
+        dict: Success response with adoption listings or error message
+    """
+    try:
+        # Create location point from user coordinates
+        user_location = Point(longitude, latitude, srid=4326)
+
+        # Get available adoptions from organizations within radius
+        nearby_adoptions = (
+            Adoption.objects.filter(
+                status="available",  # Only show available adoptions
+                posted_by__location__distance_lte=(user_location, D(km=radius_km)),
+                posted_by__is_verified=True,  # Only verified organizations
+            )
+            .select_related("profile", "posted_by")
+            .prefetch_related("profile__images")
+            .order_by("-created_at")
+        )
+
+        # Serialize adoption data with enhanced organization location details
+        adoptions_data = []
+        for adoption in nearby_adoptions:
+            adoption_data = AdoptionSerializer(adoption).details_serializer()
+
+            # Add distance and organization location details
+            if adoption.posted_by.location:
+                org_location = adoption.posted_by.location
+                distance = user_location.distance(org_location) * 111  # Convert to km
+
+                adoption_data["posted_by"]["location"] = {
+                    "latitude": org_location.y,
+                    "longitude": org_location.x,
+                }
+                adoption_data["distance_km"] = round(distance, 2)
+
+                # Add organization address if available
+                if adoption.posted_by.address:
+                    adoption_data["posted_by"]["address"] = adoption.posted_by.address
+
+            adoptions_data.append(adoption_data)
+
+        return {
+            "success": True,
+            "adoptions": adoptions_data,
+            "count": len(adoptions_data),
+            "search_radius_km": radius_km,
+            "user_location": {
+                "latitude": latitude,
+                "longitude": longitude,
+            },
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to retrieve nearby adoptions: {str(e)}"}

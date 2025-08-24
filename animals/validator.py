@@ -246,10 +246,10 @@ class MarkPetAsLostInputValidator(GeneralValidator):
 
     def serialized_data(self):
         pet_id = self.data.get("pet_id")
-        description = self.data.get("description")
-        last_seen_longitude = self.data.get("last_seen_longitude")
-        last_seen_latitude = self.data.get("last_seen_latitude")
+        longitude = self.data.get("longitude")
+        latitude = self.data.get("latitude")
         last_seen_time = self.data.get("last_seen_time")
+        description = self.data.get("description")
 
         return {
             "pet_id": self.validate_data(
@@ -257,29 +257,19 @@ class MarkPetAsLostInputValidator(GeneralValidator):
                 self.validate_type("Pet ID", pet_id, int),
                 "pet_id",
             ),
-            "description": self.validate_data(
-                description,
-                self.validate_type("Description", description, str)
-                or self.validate_len("Description", description, min=10, max=1000),
-                "description",
-            ),
-            "last_seen_longitude": self.validate_data(
-                last_seen_longitude,
-                self.validate_type(
-                    "Last Seen Longitude", last_seen_longitude, (int, float)
-                )
-                if last_seen_longitude is not None
+            "longitude": self.validate_data(
+                longitude,
+                self.validate_type("Longitude", longitude, (int, float))
+                if longitude
                 else None,
-                "last_seen_longitude",
+                "longitude",
             ),
-            "last_seen_latitude": self.validate_data(
-                last_seen_latitude,
-                self.validate_type(
-                    "Last Seen Latitude", last_seen_latitude, (int, float)
-                )
-                if last_seen_latitude is not None
+            "latitude": self.validate_data(
+                latitude,
+                self.validate_type("Latitude", latitude, (int, float))
+                if latitude
                 else None,
-                "last_seen_latitude",
+                "latitude",
             ),
             "last_seen_time": self.validate_data(
                 last_seen_time,
@@ -288,7 +278,50 @@ class MarkPetAsLostInputValidator(GeneralValidator):
                 else None,
                 "last_seen_time",
             ),
+            "description": self.validate_data(
+                description,
+                self.validate_type("Description", description, str)
+                or self.validate_len("Description", description, min=10, max=1000),
+                "description",
+            ),
         }
+
+
+class NearbyAdoptionsInputValidator(GeneralValidator):
+    def __init__(self, data) -> None:
+        self.data = data
+
+    def serialized_data(self):
+        latitude = self.data.get("latitude")
+        longitude = self.data.get("longitude")
+        radius = self.data.get("radius", 20)  # Default 20km radius
+
+        return {
+            "latitude": self.validate_data(
+                latitude,
+                self.validate_type("Latitude", latitude, (int, float)),
+                "latitude",
+            ),
+            "longitude": self.validate_data(
+                longitude,
+                self.validate_type("Longitude", longitude, (int, float)),
+                "longitude",
+            ),
+            "radius": self.validate_data(
+                radius,
+                self.validate_type("Radius", radius, (int, float))
+                or self.validate_range("Radius", radius, min_val=1, max_val=100),
+                "radius",
+            ),
+        }
+
+    def validate_range(self, field_name, value, min_val=None, max_val=None):
+        """Validate if value is within allowed range"""
+        if min_val is not None and value < min_val:
+            return f"{field_name} must be at least {min_val}"
+        if max_val is not None and value > max_val:
+            return f"{field_name} must be at most {max_val}"
+        return None
 
 
 class UploadImageInputValidator(GeneralValidator):

@@ -53,9 +53,9 @@ urlpatterns = [
         views.MarkPetAsLostAPI.as_view(),
         name="mark-pet-as-lost",
     ),
+    path(
+        "adoptions/nearby/",
+        views.NearbyAdoptionsAPI.as_view(),
+        name="nearby-adoptions",
+    ),
 ]
-
-# TODO
-#
-# Lost
-# Adopt

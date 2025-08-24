@@ -22,8 +22,12 @@ from .serializers import (
     AnimalSightingSerializer,
     EmergencySerializer,
 )
-from .utils import create_emergency, mark_pet_as_lost
-from .validator import CreateEmergencyInputValidator, MarkPetAsLostInputValidator
+from .utils import create_emergency, get_nearby_adoptions, mark_pet_as_lost
+from .validator import (
+    CreateEmergencyInputValidator,
+    MarkPetAsLostInputValidator,
+    NearbyAdoptionsInputValidator,
+)
 
 
 class AnimalProfileListAPI(APIView):
@@ -1159,5 +1163,187 @@ class MarkPetAsLostAPI(APIView):
         except Exception as e:
             return Response(
                 {"error": f"Failed to mark pet as lost: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class NearbyAdoptionsAPI(APIView):
+    """API view to get adoption listings from organizations within specified radius
+
+    Methods:
+        GET
+    """
+
+    authentication_classes = [UserTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Get adoption listings from verified organizations within specified radius of user location",
+        operation_summary="Get Nearby Adoption Listings",
+        tags=["Adoptions"],
+        manual_parameters=[
+            openapi.Parameter(
+                "latitude",
+                openapi.IN_QUERY,
+                description="User's latitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "longitude",
+                openapi.IN_QUERY,
+                description="User's longitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "radius",
+                openapi.IN_QUERY,
+                description="Search radius in kilometers (default: 20km, max: 100km)",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="Successfully retrieved nearby adoption listings",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        "adoptions": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "profile": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "id": openapi.Schema(
+                                                type=openapi.TYPE_INTEGER
+                                            ),
+                                            "name": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "species": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "breed": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "type": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "images": openapi.Schema(
+                                                type=openapi.TYPE_ARRAY
+                                            ),
+                                            "location": openapi.Schema(
+                                                type=openapi.TYPE_OBJECT
+                                            ),
+                                        },
+                                    ),
+                                    "posted_by": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "id": openapi.Schema(
+                                                type=openapi.TYPE_INTEGER
+                                            ),
+                                            "name": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "email": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "is_verified": openapi.Schema(
+                                                type=openapi.TYPE_BOOLEAN
+                                            ),
+                                            "location": openapi.Schema(
+                                                type=openapi.TYPE_OBJECT
+                                            ),
+                                            "address": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                        },
+                                    ),
+                                    "description": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "distance_km": openapi.Schema(
+                                        type=openapi.TYPE_NUMBER
+                                    ),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "updated_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                },
+                            ),
+                        ),
+                        "count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "search_radius_km": openapi.Schema(type=openapi.TYPE_NUMBER),
+                        "user_location": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "latitude": openapi.Schema(type=openapi.TYPE_NUMBER),
+                                "longitude": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            },
+                        ),
+                    },
+                ),
+            ),
+            400: openapi.Response(
+                description="Bad Request - Missing or invalid coordinates/radius"
+            ),
+            500: openapi.Response(description="Internal Server Error"),
+        },
+    )
+    def get(self, request):
+        """Get adoption listings from organizations within specified radius
+
+        Args:
+            request: HTTP request with latitude, longitude, and optional radius parameters
+
+        Returns:
+            Response: List of nearby adoption listings with organization details and distances
+        """
+        try:
+            # Validate input data
+            query_params = {
+                "latitude": request.query_params.get("latitude"),
+                "longitude": request.query_params.get("longitude"),
+                "radius": request.query_params.get("radius", 20),  # Default 20km
+            }
+
+            # Convert radius to appropriate type
+            if query_params["radius"]:
+                try:
+                    query_params["radius"] = float(query_params["radius"])
+                except (ValueError, TypeError):
+                    query_params["radius"] = 20
+
+            validated_data = NearbyAdoptionsInputValidator(
+                query_params
+            ).serialized_data()
+
+            # Get nearby adoptions
+            result = get_nearby_adoptions(
+                latitude=validated_data["latitude"],
+                longitude=validated_data["longitude"],
+                radius_km=validated_data["radius"],
+            )
+
+            if "error" in result:
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve nearby adoptions: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
