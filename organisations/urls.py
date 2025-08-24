@@ -23,4 +23,9 @@ urlpatterns = [
         views.NearbyMissionsAPI.as_view(),
         name="nearby-missions",
     ),
+    path(
+        "sightings-emergencies/nearby/",
+        views.NearbySightingsAndEmergenciesAPI.as_view(),
+        name="nearby-sightings-emergencies",
+    ),
 ]

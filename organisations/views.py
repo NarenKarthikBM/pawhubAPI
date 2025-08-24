@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework.validators import ValidationError
 from rest_framework.views import APIView
 
+from animals.models import AnimalSighting, Emergency
+from animals.serializers import AnimalSightingSerializer, EmergencySerializer
 from organisations.models import (
     Organisation,
     OrganisationMissions,
@@ -573,3 +575,168 @@ class NearbyMissionsAPI(APIView):
         ]
 
         return Response(missions_data, status=status.HTTP_200_OK)
+
+
+class NearbySightingsAndEmergenciesAPI(APIView):
+    """API view to get animal sightings and emergencies within specified radius for organizations
+
+    Methods:
+        GET
+    """
+
+    @swagger_auto_schema(
+        operation_description="Get animal sightings and emergencies within specified radius",
+        operation_summary="Get Nearby Sightings and Emergencies for Organizations",
+        tags=["Organization Operations"],
+        manual_parameters=[
+            openapi.Parameter(
+                "latitude",
+                openapi.IN_QUERY,
+                description="Latitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "longitude",
+                openapi.IN_QUERY,
+                description="Longitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "radius",
+                openapi.IN_QUERY,
+                description="Radius in kilometers",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="List of nearby animal sightings and emergencies",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "sightings": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "animal": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                    "location": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT
+                                    ),
+                                    "image": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                    "reporter": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT
+                                    ),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                },
+                            ),
+                        ),
+                        "emergencies": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "emergency_type": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "reporter": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT
+                                    ),
+                                    "location": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT
+                                    ),
+                                    "image": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                    "description": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                },
+                            ),
+                        ),
+                    },
+                ),
+            ),
+            400: openapi.Response(
+                description="Bad Request - Missing or invalid parameters"
+            ),
+        },
+    )
+    def get(self, request):
+        """Get animal sightings and emergencies within specified radius
+
+        Args:
+            request: HTTP request with latitude, longitude, and radius parameters
+
+        Returns:
+            Response: Combined list of nearby sightings and emergencies
+        """
+        # Get latitude, longitude, and radius from query parameters
+        try:
+            latitude = float(request.query_params.get("latitude"))
+            longitude = float(request.query_params.get("longitude"))
+            radius = float(request.query_params.get("radius"))
+        except (TypeError, ValueError):
+            return Response(
+                {
+                    "error": "latitude, longitude, and radius are required and must be valid numbers"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate radius is positive
+        if radius <= 0:
+            return Response(
+                {"error": "Radius must be a positive number"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create a point from the coordinates
+        user_location = Point(longitude, latitude, srid=4326)
+
+        # Get sightings within specified radius
+        nearby_sightings = (
+            AnimalSighting.objects.filter(
+                location__distance_lte=(user_location, D(km=radius)),
+                animal__isnull=False,  # Only include sightings with associated animals
+            )
+            .select_related("animal", "image", "reporter")
+            .order_by("-created_at")
+        )
+
+        # Get emergencies within specified radius
+        nearby_emergencies = (
+            Emergency.objects.filter(
+                location__distance_lte=(user_location, D(km=radius)),
+                status="active",  # Only include active emergencies
+            )
+            .select_related("reporter", "image", "animal")
+            .order_by("-created_at")
+        )
+
+        # Serialize the data
+        sightings_data = [
+            AnimalSightingSerializer(sighting).details_serializer()
+            for sighting in nearby_sightings
+        ]
+
+        emergencies_data = [
+            EmergencySerializer(emergency).details_serializer()
+            for emergency in nearby_emergencies
+        ]
+
+        response_data = {
+            "sightings": sightings_data,
+            "emergencies": emergencies_data,
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
