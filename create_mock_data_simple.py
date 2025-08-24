@@ -54,7 +54,7 @@ class MockDataCreator:
 
     def __init__(self):
         """Initialize the mock data creator"""
-        self.similarity_threshold = 0.8  # 90% similarity threshold
+        self.similarity_threshold = 0.9  # 90% similarity threshold
 
     def create_users(self, count=15):
         """Create mock users"""
@@ -109,9 +109,8 @@ class MockDataCreator:
             org = Organisation.objects.create(
                 name=name,
                 email=f"contact@{name.lower().replace(' ', '').replace('_', '')}org.com",
-                phone=f"+91{random.randint(7000000000, 9999999999)}",
-                type="shelter",
-                verification_status="verified",
+                address=f"Address for {name}",
+                is_verified=True,
                 location=Point(lng, lat),
             )
             created_orgs.append(org)
@@ -206,15 +205,16 @@ class MockDataCreator:
                 species_data = result.get('species')
                 embedding = result.get('embedding')
 
-                # Fix embedding dimensions if needed (database expects 384, but API might return 512)
+                # Fix embedding dimensions if needed (database expects 512 now)
                 if embedding:
-                    if len(embedding) == 512:
-                        embedding = embedding[:384]  # Truncate to 384 dimensions
-                        print("🔧 Adjusted embedding from 512 to 384 dimensions")
-                    elif len(embedding) < 384:
-                        # Pad with zeros if too short
-                        embedding = embedding + [0.0] * (384 - len(embedding))
-                        print(f"🔧 Padded embedding from {len(embedding)} to 384 dimensions")
+                    if len(embedding) != 512:
+                        # Pad with zeros if too short, truncate if too long
+                        if len(embedding) < 512:
+                            embedding = embedding + [0.0] * (512 - len(embedding))
+                            print(f"🔧 Padded embedding from {len(embedding)} to 512 dimensions")
+                        else:
+                            embedding = embedding[:512]  # Truncate if too long
+                            print(f"🔧 Truncated embedding from {len(embedding)} to 512 dimensions")
 
                 if not embedding or not species_data:
                     print(f"⚠️  ML processing failed for {image_path.name}, skipping...")
@@ -248,28 +248,27 @@ class MockDataCreator:
                         )
                     
                     animal_media = AnimalMedia.objects.create(
-                        media_type="image",
-                        media_url=f"https://mock-storage.vultr.com/{image_path.name}",
-                        uploaded_by=reporter if hasattr(reporter, 'email') else None,
+                        image_url=f"https://mock-storage.vultr.com/{image_path.name}",
+                        animal=None,  # Will be set after animal creation
                         embedding=embedding,
                     )
                     
                     # Create new animal
                     matched_animal = AnimalProfileModel.objects.create(
                         name=f"Stray {species_data.get('species', 'Animal')} {random.randint(1000, 9999)}",
-                        type=species_data.get('species', 'dog').lower(),
+                        type='stray',  # Use valid choice
+                        species=species_data.get('species', 'dog'),
                         breed=species_data.get('breed', 'Mixed'),
-                        color=random.choice(['Brown', 'Black', 'White', 'Golden', 'Gray', 'Mixed']),
-                        gender=random.choice(['male', 'female']),
-                        size=random.choice(['small', 'medium', 'large']),
-                        status='stray',
-                        health_status=random.choice(['healthy', 'minor_injury', 'sick']),
                         location=self.get_random_location_in_radius(center_lat, center_lng),
-                        reporter=reporter,
+                        owner=reporter if hasattr(reporter, 'username') else None,
                     )
                     
-                    # Add media to animal
-                    matched_animal.media.add(animal_media)
+                    # Set the animal reference in the media
+                    animal_media.animal = matched_animal
+                    animal_media.save()
+                    
+                    # Add media to animal using the many-to-many relationship
+                    matched_animal.images.add(animal_media)
                     print(f"🆕 Created new animal profile: {matched_animal.name}")
 
                 # Generate sighting data
@@ -287,22 +286,22 @@ class MockDataCreator:
                     )
                 
                 sighting_media = AnimalMedia.objects.create(
-                    media_type="image",
-                    media_url=f"https://mock-storage.vultr.com/sighting_{image_path.name}",
-                    uploaded_by=reporter if hasattr(reporter, 'email') else None,
+                    image_url=f"https://mock-storage.vultr.com/sighting_{image_path.name}",
+                    animal=matched_animal,
                     embedding=embedding,
                 )
 
-                # Create sighting
+                # Create sighting with the timestamp
                 sighting = AnimalSighting.objects.create(
                     animal=matched_animal,
-                    reporter=reporter,
+                    reporter=reporter if hasattr(reporter, 'username') else None,
                     location=location,
-                    description=f"Sighting of {matched_animal.name} in Kolkata area",
-                    status='verified',
                     image=sighting_media,  # Reference the media we just created
-                    created_at=sighting_time,
                 )
+                
+                # Update the created_at field manually if needed
+                sighting.created_at = sighting_time
+                sighting.save()
 
                 created_sightings.append(sighting)
 
@@ -332,12 +331,10 @@ class MockDataCreator:
         print(f"Creating {count} mock emergency reports...")
         
         emergency_types = [
-            'injured', 'sick', 'trapped', 'aggressive', 'lost', 'abandoned',
-            'hit_by_vehicle', 'poisoning', 'abuse', 'other'
+            'injury', 'rescue_needed', 'aggressive_behavior', 'missing_lost_pet'
         ]
         
-        severity_levels = ['low', 'medium', 'high', 'critical']
-        statuses = ['reported', 'in_progress', 'resolved', 'false_alarm']
+        statuses = ['active', 'resolved']
         
         created_emergencies = []
         
@@ -352,11 +349,9 @@ class MockDataCreator:
                 animal=animal,
                 reporter=reporter,
                 emergency_type=random.choice(emergency_types),
-                severity=random.choice(severity_levels),
                 location=location,
                 description=f"Emergency report #{i+1} - {random.choice(emergency_types)} situation",
                 status=random.choice(statuses),
-                created_at=self.get_random_past_datetime(),
             )
             created_emergencies.append(emergency)
         
@@ -367,22 +362,22 @@ class MockDataCreator:
         """Create mock adoption records"""
         print(f"Creating {count} mock adoption records...")
         
-        statuses = ['pending', 'approved', 'rejected', 'completed']
+        statuses = ['available', 'adopted']
         
         created_adoptions = []
         
         for i in range(count):
             animal = random.choice(animals) if animals else None
-            adopter = random.choice(users) if users else None
             organisation = random.choice(organisations) if organisations else None
             
+            if not animal or not organisation:
+                continue
+            
             adoption = Adoption.objects.create(
-                animal=animal,
-                adopter=adopter,
-                organisation=organisation,
+                profile=animal,
+                posted_by=organisation,
+                description=f"Adoption listing #{i+1} for {animal.name}",
                 status=random.choice(statuses),
-                application_date=self.get_random_past_datetime(),
-                notes=f"Adoption application #{i+1} for {animal.name if animal else 'unknown animal'}",
             )
             created_adoptions.append(adoption)
         
