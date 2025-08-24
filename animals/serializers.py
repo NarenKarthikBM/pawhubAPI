@@ -420,6 +420,11 @@ class SightingMatchSerializer:
                     else "medium"
                     if match["similarity_score"] > 0.7
                     else "low",
+                    "image_url": models.AnimalProfileModel.objects.get(
+                        id=match["profile"]["id"]
+                    )
+                    .media_files.first()
+                    .image_url,
                 }
             )
 
