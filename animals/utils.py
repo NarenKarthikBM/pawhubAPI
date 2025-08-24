@@ -210,6 +210,7 @@ def mark_pet_as_lost(data, user):
 # ML API Configuration
 ML_API_BASE_URL = "http://139.84.137.195:8001"
 ML_API_TIMEOUT = 30
+ML_API_KEY = "supersecrettoken123"
 
 
 def call_ml_api(endpoint: str, data: Dict) -> Optional[Dict]:
@@ -224,11 +225,17 @@ def call_ml_api(endpoint: str, data: Dict) -> Optional[Dict]:
     """
     try:
         url = f"{ML_API_BASE_URL}/{endpoint}/"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {ML_API_KEY}",
+            "X-API-Token": ML_API_KEY,
+        }
+
         response = requests.post(
             url,
             json=data,
             timeout=ML_API_TIMEOUT,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
 
         if response.status_code == 200:
