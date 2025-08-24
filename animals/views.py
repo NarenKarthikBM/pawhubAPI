@@ -563,7 +563,7 @@ class CreateSightingAPI(APIView):
                 formatted_matches, species_data
             )
 
-            return Response({"response": response_data, "matches": matching_profiles}, status=status.HTTP_201_CREATED)
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response(
