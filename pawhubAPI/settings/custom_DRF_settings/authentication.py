@@ -9,7 +9,7 @@ class UserTokenAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
         auth_token, device_token = (
             request.META.get("HTTP_AUTHORIZATION"),
-            # request.META.get("HTTP_DEVICE_TOKEN"),
+            request.META.get("HTTP_DEVICE_TOKEN"),
         )
         if not auth_token:
             raise exceptions.AuthenticationFailed("No such user")
