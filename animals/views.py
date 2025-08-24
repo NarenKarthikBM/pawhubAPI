@@ -1235,7 +1235,14 @@ class NearbyAdoptionsAPI(APIView):
                                                 type=openapi.TYPE_STRING
                                             ),
                                             "images": openapi.Schema(
-                                                type=openapi.TYPE_ARRAY
+                                                type=openapi.TYPE_ARRAY,
+                                                items=openapi.Schema(
+                                                    type=openapi.TYPE_OBJECT,
+                                                    properties={
+                                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                                        "image_url": openapi.Schema(type=openapi.TYPE_STRING),
+                                                    },
+                                                ),
                                             ),
                                             "location": openapi.Schema(
                                                 type=openapi.TYPE_OBJECT
