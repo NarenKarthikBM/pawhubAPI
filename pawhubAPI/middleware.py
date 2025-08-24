@@ -62,7 +62,7 @@ class CorsMiddleware:
             "cache-control, x-api-key, x-device-token"
         )
         response["Access-Control-Expose-Headers"] = (
-            "content-type, x-api-key, authorization, device-token"
+            "content-type, x-api-key, authorization, device-token, x-device-token"
         )
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Max-Age"] = "86400"
