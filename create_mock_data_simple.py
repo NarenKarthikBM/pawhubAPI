@@ -232,7 +232,14 @@ class MockDataCreator:
 
                 # Find similar animals based on embedding
                 print("🔍 Searching for similar animal profiles...")
-                similar_animals = find_similar_animal_profiles(embedding, threshold=self.similarity_threshold)
+                
+                # Generate a temporary location for similarity search (use sighting location)
+                temp_location = self.get_random_location_in_radius(center_lat, center_lng)
+                similar_animals = find_similar_animal_profiles(
+                    location=temp_location,
+                    embedding=embedding, 
+                    similarity_threshold=self.similarity_threshold
+                )
 
                 matched_animal = None
                 if similar_animals:
