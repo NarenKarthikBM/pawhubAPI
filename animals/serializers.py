@@ -413,9 +413,9 @@ class SightingMatchSerializer:
                     "breed": match["profile"]["breed"],
                     "type": match["profile"]["type"],
                     "similarity_score": round(match["similarity_score"], 3),
-                    "distance_km": round(match["distance_km"], 2),
-                    "matching_image_url": match["matching_image_url"],
-                    "location": match["profile"]["location"],
+                    # "distance_km": round(match["distance_km"], 2),
+                    # "matching_image_url": match["matching_image_url"],
+                    # "location": match["profile"]["location"],
                     "confidence": "high"
                     if match["similarity_score"] > 0.8
                     else "medium"
