@@ -83,8 +83,8 @@ class CreateSightingInputValidator(GeneralValidator):
         self.data = data
 
     def serialized_data(self):
-        longitude = self.data.get("longitude")
-        latitude = self.data.get("latitude")
+        longitude = float(self.data.get("longitude", 0))
+        latitude = float(self.data.get("latitude", 0))
         image_file = self.data.get("image_file")
 
         return {
