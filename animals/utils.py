@@ -414,24 +414,36 @@ def find_similar_animal_profiles(
 
         results = []
         for profile in annotated_profiles:
-            # Convert cosine distance to similarity
-            image_similarity = 1 - float(profile.min_image_distance)
+            # Safely get the annotated min image distance (may be None)
+            min_dist = getattr(profile, "min_image_distance", None)
 
-            # Breed similarity
-            # breed_similarity = 0.0
-            # if breed_analysis and profile.breed_analysis:
-            #     breed_similarity = calculate_breed_similarity(
-            #         breed_analysis, profile.breed_analysis
-            #     )
+            # Convert cosine distance to similarity (guard against None or invalid types)
+            if min_dist is None:
+                image_similarity = 0.0
+                image_distance_value = None
+            else:
+                try:
+                    image_distance_value = float(min_dist)
+                    image_similarity = 1.0 - image_distance_value
+                except Exception:
+                    image_similarity = 0.0
+                    image_distance_value = None
 
-            # Combined similarity (70% image, 30% breed)
+            # Clamp similarity to [0,1]
+            if image_similarity is None:
+                image_similarity = 0.0
+            image_similarity = max(0.0, min(1.0, image_similarity))
+
+            # Combined similarity (currently only image-based)
             combined_similarity = image_similarity
+
             results.append(
                 {
                     "profile": profile,
                     "similarity_score": combined_similarity,
                     "image_similarity": image_similarity,
-                    # "breed_similarity": breed_similarity,
+                    "image_distance": image_distance_value,
+                    # placeholder distance; replace with real distance if annotated
                     "distance_km": 10,
                     # Optional: get best media image URL
                     # "matching_image_url": (
@@ -450,11 +462,21 @@ def find_similar_animal_profiles(
                 }
             )
 
-        # Sort by combined similarity descending
-        # results.sort(key=lambda x: x["similarity_score"], reverse=True)
-        return [{"profile": AnimalProfileModelSerializer(
-                                profile
-                            ).details_serializer(), "similarity_score": profile["similarity_score"]} for profile in results]
+        # Sort by combined similarity descending and limit results
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        limited_results = results[:limit]
+
+        # Serialize and return profiles with similarity scores
+        return [
+            {
+                "profile": AnimalProfileModelSerializer(item["profile"]).details_serializer(),
+                "similarity_score": item["similarity_score"],
+                "image_similarity": item["image_similarity"],
+                "image_distance": item["image_distance"],
+                "distance_km": item["distance_km"],
+            }
+            for item in limited_results
+        ]
 
     except Exception as e:
         print(f"Error finding similar profiles: {str(e)}")
