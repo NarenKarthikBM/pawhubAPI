@@ -2,6 +2,7 @@ import concurrent.futures
 import secrets
 from typing import Dict, List, Optional, Tuple
 
+from rest_framework.validators import ValidationError
 import requests
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
@@ -290,9 +291,8 @@ def upload_and_process_image(
 
     if not success:
         # Return error message in place of image_url for error handling
-        return Response(
-            {"error": "Image upload failed. Please try again.", "details": result},
-            status=400,
+        raise ValidationError(
+            {"error": "Image upload failed. Please try again.", "details": result}
         )
 
     image_url = result
