@@ -434,19 +434,19 @@ def find_similar_animal_profiles(
                     # "breed_similarity": breed_similarity,
                     "distance_km": float(profile.distance_km),
                     # Optional: get best media image URL
-                    "matching_image_url": (
-                        profile.media_files.filter(embedding__isnull=False)
-                        .order_by(
-                            ExpressionWrapper(
-                                CosineDistance("embedding", embedding),
-                                output_field=FloatField(),
-                            )
-                        )
-                        .first()
-                        .image_url
-                    )
-                    if profile.media_files.exists()
-                    else None,
+                    # "matching_image_url": (
+                    #     profile.media_files.filter(embedding__isnull=False)
+                    #     .order_by(
+                    #         ExpressionWrapper(
+                    #             CosineDistance("embedding", embedding),
+                    #             output_field=FloatField(),
+                    #         )
+                    #     )
+                    #     .first()
+                    #     .image_url
+                    # )
+                    # if profile.media_files.exists()
+                    # else None,
                 }
             )
 
