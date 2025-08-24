@@ -440,13 +440,10 @@ class MockDataCreator:
                         name=f"Spotted {species} #{i+1}",
                         species=species,
                         breed=breed,
-                        animal_type="stray",
+                        type="stray",  # Changed from animal_type to type
                         location=location,
                         breed_analysis=breed_analysis,
-                        description=f"Stray {species.lower()} spotted during community monitoring",
-                        weight=random.uniform(5.0, 25.0),
-                        age=random.choice([1, 2, 3, 4, 5]),
-                        date_joined=sighting_time,
+                        # Removed: description, weight, age, date_joined (not in model)
                     )
 
                     # Create media for the new animal
