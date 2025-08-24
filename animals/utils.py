@@ -400,9 +400,7 @@ def find_similar_animal_profiles(
     """
     try:
         # Base queryset: profiles within radius with embeddings
-        nearby_profiles = AnimalProfileModel.objects.filter(
-            media_files__embedding__isnull=False,
-        )
+        nearby_profiles = AnimalProfileModel.objects.all()
 
         # Annotate each profile with:
         # 1. Minimum image cosine distance across all media files
