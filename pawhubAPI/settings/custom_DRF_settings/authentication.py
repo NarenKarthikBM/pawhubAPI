@@ -12,7 +12,7 @@ class UserTokenAuthentication(authentication.BaseAuthentication):
             request.META.get("HTTP_DEVICE_TOKEN"),
         )
         if not auth_token or not device_token:
-            return None
+            raise exceptions.AuthenticationFailed("No such user")
 
         try:
             user_auth_token = UserAuthTokens.objects.get(
@@ -31,7 +31,7 @@ class OrganisationTokenAuthentication(authentication.BaseAuthentication):
             request.META.get("HTTP_DEVICE_TOKEN"),
         )
         if not auth_token or not device_token:
-            return None
+            raise exceptions.AuthenticationFailed("No such user")
 
         try:
             user_auth_token = OrganisationAuthTokens.objects.get(
@@ -50,7 +50,7 @@ class VetTokenAuthentication(authentication.BaseAuthentication):
             request.META.get("HTTP_DEVICE_TOKEN"),
         )
         if not auth_token or not device_token:
-            return None
+            raise exceptions.AuthenticationFailed("No such user")
 
         try:
             user_auth_token = VetAuthTokens.objects.get(

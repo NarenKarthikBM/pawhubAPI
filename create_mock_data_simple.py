@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Simple Mock Data Creator for PawHub API
-This script creates mock data for testing purposes.
+This script creates mock data for testing purposes with ML-enhanced sighting workflow.
 Run this from the project root directory.
 """
 
 import os
+import random
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import django
@@ -16,13 +18,12 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 # Set up Django environment
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pawhubAPI.settings.local")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pawhubAPI.settings")
 django.setup()
-
-import random
 
 from django.contrib.gis.geos import Point
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 
 from animals.models import (
     Adoption,
@@ -31,6 +32,9 @@ from animals.models import (
     AnimalSighting,
     Emergency,
 )
+
+# Import ML utilities for similarity matching
+from animals.utils import find_similar_animal_profiles, upload_and_process_image
 from organisations.models import Organisation
 
 # Import models
@@ -117,20 +121,47 @@ class MockDataCreator:
         return AnimalMedia.objects.create(image_url=image_url, animal=animal), None
 
     def get_random_location(self):
-        """Generate random coordinates around major cities"""
-        city_centers = [
-            (-74.0060, 40.7128),  # New York
-            (-118.2437, 34.0522),  # Los Angeles
-            (-87.6298, 41.8781),  # Chicago
-            (-95.3698, 29.7604),  # Houston
-            (-75.1652, 39.9526),  # Philadelphia
-        ]
+        """Generate random coordinates within 20km radius of Kolkata center"""
+        # Kolkata center coordinates
+        center_lat = 22.96391456958128
+        center_lng = 88.53245371532486
 
-        center = random.choice(city_centers)
-        lat_offset = random.uniform(-0.05, 0.05)  # ~5km radius
-        lng_offset = random.uniform(-0.05, 0.05)
+        # Generate random point within 20km radius using proper circular distribution
+        import math
 
-        return Point(center[0] + lng_offset, center[1] + lat_offset)
+        # Generate random angle (0 to 2π)
+        angle = random.uniform(0, 2 * math.pi)
+
+        # Generate random radius (0 to max_radius) with square root for uniform distribution
+        max_radius_km = 20
+        radius_km = max_radius_km * math.sqrt(random.uniform(0, 1))
+
+        # Convert km to degrees (approximately)
+        # 1 degree latitude ≈ 111 km
+        # 1 degree longitude ≈ 111 km * cos(latitude)
+        lat_per_km = 1.0 / 111.0
+        lng_per_km = 1.0 / (111.0 * math.cos(math.radians(center_lat)))
+
+        # Calculate offsets
+        lat_offset = radius_km * lat_per_km * math.sin(angle)
+        lng_offset = radius_km * lng_per_km * math.cos(angle)
+
+        # Apply offsets to center coordinates
+        lat = center_lat + lat_offset
+        lng = center_lng + lng_offset
+
+        return Point(lng, lat)  # Note: Point(longitude, latitude)
+
+    def get_random_past_datetime(self):
+        """Generate random datetime within the past month"""
+        now = timezone.now()
+        one_month_ago = now - timedelta(days=30)
+
+        # Generate random number of seconds between one month ago and now
+        time_diff = now - one_month_ago
+        random_seconds = random.randint(0, int(time_diff.total_seconds()))
+
+        return one_month_ago + timedelta(seconds=random_seconds)
 
     def get_random_breed_analysis(self):
         """Generate random breed analysis data"""
@@ -309,33 +340,147 @@ class MockDataCreator:
 
         return created_animals
 
-    def create_sightings(self, animals, users, count=30):
-        """Create animal sightings with ML processing"""
+    def create_enhanced_sightings(self, users, count=50):
+        """Create sightings using ML similarity matching workflow"""
+        print(f"\n🔍 Creating {count} enhanced sightings with similarity matching...")
+
+        # Get all images from sc2 folder
+        sc2_folder = (
+            Path(self.images_folder) / "sc2" if self.images_folder else Path("sc2")
+        )
+        if not sc2_folder.exists():
+            print(f"❌ SC2 folder not found: {sc2_folder}")
+            print("Creating regular sightings instead...")
+            return self.create_sightings([], users, count)
+
+        image_files = (
+            list(sc2_folder.glob("*.jpg"))
+            + list(sc2_folder.glob("*.jpeg"))
+            + list(sc2_folder.glob("*.png"))
+            + list(sc2_folder.glob("*.webp"))
+        )
+
+        if not image_files:
+            print(f"❌ No images found in {sc2_folder}")
+            return []
+
+        print(f"📁 Found {len(image_files)} images in SC2 folder")
+
+        created_sightings = []
+
         for i in range(count):
-            animal = random.choice(animals) if random.choice([True, False]) else None
-            reporter = random.choice(users)
+            try:
+                # Select random image and user
+                image_path = random.choice(image_files)
+                reporter = random.choice(users)
+                location = self.get_random_location()
+                sighting_time = self.get_random_past_datetime()
 
-            # Create sighting image with ML processing
-            sighting_image, species_data = self.create_animal_media()
+                print(f"\n🖼️  Processing sighting #{i+1}: {image_path.name}")
 
-            # Extract breed analysis from ML data if available
-            if species_data:
-                breed_analysis = species_data.get(
-                    "breed_analysis", self.get_random_breed_analysis()
+                # Upload and process image with ML
+                with open(image_path, "rb") as f:
+                    uploaded_file = SimpleUploadedFile(
+                        name=image_path.name,
+                        content=f.read(),
+                        content_type="image/jpeg",
+                    )
+
+                # Get ML processing results
+                image_url, species_data, embedding = upload_and_process_image(
+                    uploaded_file
                 )
-                print(f"Sighting #{i+1}: ML detected {len(breed_analysis)} features")
-            else:
-                breed_analysis = self.get_random_breed_analysis()
-                print(f"Sighting #{i+1}: Using fallback breed analysis")
 
-            AnimalSighting.objects.create(
-                animal=animal,
-                location=self.get_random_location(),
-                image=sighting_image,
-                reporter=reporter,
-                breed_analysis=breed_analysis,
-            )
-            print(f"Created sighting #{i+1}")
+                if not embedding or not species_data:
+                    print(f"⚠️  ML processing failed for {image_path.name}, skipping...")
+                    continue
+
+                # Extract breed analysis
+                breed_analysis = species_data.get("breed_analysis", [])
+                species = species_data.get("species", "Unknown")
+                breed = species_data.get("breed", "Mixed")
+
+                print(f"🔬 ML detected: {species} - {breed}")
+                print(f"📊 Features extracted: {len(breed_analysis)} characteristics")
+
+                # Search for similar animal profiles (90% threshold)
+                similar_profiles = find_similar_animal_profiles(
+                    location=location,
+                    embedding=embedding,
+                    breed_analysis=breed_analysis,
+                    radius_km=20,
+                    similarity_threshold=0.9,
+                    limit=5,
+                )
+
+                matched_animal = None
+                if similar_profiles:
+                    # Get the best match (highest similarity)
+                    best_match = similar_profiles[0]
+                    similarity_score = best_match["similarity_score"]
+                    matched_animal_id = best_match["profile"]["id"]
+
+                    try:
+                        matched_animal = AnimalProfileModel.objects.get(
+                            id=matched_animal_id
+                        )
+                        print(
+                            f"✅ Found matching animal: {matched_animal.name or 'Unnamed'} (similarity: {similarity_score:.2%})"
+                        )
+                    except AnimalProfileModel.DoesNotExist:
+                        print("⚠️  Matched animal not found in database")
+                        matched_animal = None
+                else:
+                    print(
+                        "🆕 No similar animals found (>90% threshold), creating new profile..."
+                    )
+
+                    # Create new animal profile for this sighting
+                    matched_animal = AnimalProfileModel.objects.create(
+                        name=f"Spotted {species} #{i+1}",
+                        species=species,
+                        breed=breed,
+                        animal_type="stray",
+                        location=location,
+                        breed_analysis=breed_analysis,
+                        description=f"Stray {species.lower()} spotted during community monitoring",
+                        weight=random.uniform(5.0, 25.0),
+                        age=random.choice([1, 2, 3, 4, 5]),
+                        date_joined=sighting_time,
+                    )
+
+                    # Create media for the new animal
+                    AnimalMedia.objects.create(
+                        image_url=image_url, animal=matched_animal, embedding=embedding
+                    )
+
+                    print(f"🐾 Created new animal profile: {matched_animal.name}")
+
+                # Create the sighting record
+                sighting = AnimalSighting.objects.create(
+                    animal=matched_animal,
+                    location=location,
+                    reporter=reporter,
+                    breed_analysis=breed_analysis,
+                    created_at=sighting_time,
+                    updated_at=sighting_time,
+                )
+
+                # Create media record for the sighting
+                AnimalMedia.objects.create(
+                    image_url=image_url, animal=matched_animal, embedding=embedding
+                )
+
+                created_sightings.append(sighting)
+
+                print(f"✅ Created sighting #{i+1} for {matched_animal.name}")
+
+            except Exception as e:
+                print(f"❌ Error processing sighting #{i+1}: {str(e)}")
+                continue
+
+        print(f"\n🎉 Created {len(created_sightings)} enhanced sightings successfully!")
+        return created_sightings
 
     def create_emergencies(self, animals, users, count=10):
         """Create emergency reports with ML processing"""
@@ -449,9 +594,11 @@ class MockDataCreator:
 
 
 def main():
-    """Main function to create all mock data"""
-    print("PawHub API Mock Data Creator")
-    print("=" * 40)
+    """Main function to create enhanced mock data with ML similarity matching"""
+    print("=" * 50)
+    print("🐾 Enhanced Mock Data Creator for PawHub API")
+    print("   ML-Enhanced Sighting Workflow with Similarity Matching")
+    print("=" * 50)
 
     # Get images folder from command line argument or use default
     images_folder = None
@@ -462,7 +609,9 @@ def main():
             images_folder = None
     else:
         print("Usage: python create_mock_data_simple.py [images_folder_path]")
-        print("No images folder provided, using placeholder images")
+        print("Expected: SC2 subfolder within the provided images folder")
+        print("Example: python create_mock_data_simple.py /path/to/images")
+        print("         (will look for images in /path/to/images/sc2/)")
 
     # Create mock data creator
     creator = MockDataCreator(images_folder)
@@ -474,24 +623,36 @@ def main():
     print("\n2. Creating mock organizations...")
     organizations = creator.create_mock_organizations()
 
-    print("\n3. Creating stray animals...")
-    animals = creator.create_stray_animals(20)
+    print("\n3. Creating enhanced sightings with ML similarity matching...")
+    print("   📍 Location: Kolkata area (20km radius)")
+    print("   📅 Time: Scattered over past month")
+    print("   🎯 Similarity threshold: 90%")
+    creator.create_enhanced_sightings(users, 50)
 
-    print("\n4. Creating animal sightings...")
-    creator.create_sightings(animals, users, 30)
+    print("\n4. Creating emergency reports...")
+    creator.create_emergencies([], users, 10)
 
-    print("\n5. Creating emergency reports...")
-    creator.create_emergencies(animals, users, 10)
-
-    print("\n6. Creating adoption listings...")
+    print("\n5. Creating adoption listings...")
     creator.create_adoptions(organizations, 15)
 
-    print("\n" + "=" * 40)
-    print("Mock data creation completed successfully!")
-    print("Created:")
-    print(f"- {len(users)} users")
-    print(f"- {len(organizations)} organizations")
-    print(f"- {len(animals)} stray animals")
+    # Count created animals (some from sightings, some from adoptions)
+    total_animals = AnimalProfileModel.objects.count()
+    total_sightings = AnimalSighting.objects.count()
+
+    print("\n" + "=" * 50)
+    print("🎉 Enhanced mock data creation completed successfully!")
+    print("=" * 50)
+    print("📊 Summary:")
+    print(f"   • Users: {len(users)}")
+    print(f"   • Organizations: {len(organizations)}")
+    print(f"   • Animal profiles: {total_animals}")
+    print(f"   • Sightings: {total_sightings}")
+    print("   • Emergencies: 10")
+    print("   • Adoptions: 15")
+    print("\n🌍 Geographic scope: Kolkata, India (20km radius)")
+    print("📅 Time span: Past 30 days")
+    print("🔬 ML features: Species detection, similarity matching, embeddings")
+    print("=" * 50)
     print("- 30 sightings")
     print("- 10 emergencies")
     print("- 15 adoptions")
