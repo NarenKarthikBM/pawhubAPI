@@ -35,7 +35,15 @@ class CorsMiddleware:
         origin = request.META.get("HTTP_ORIGIN", "")
 
         # List of allowed origins for Flutter development
-        allowed_origins = ["*"]
+        allowed_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8080",
+            "http://localhost:62170",
+            "http://127.0.0.1:8080",
+            "http://10.0.2.2:8000",  # Android emulator
+            "http://127.0.0.1:8000",  # iOS simulator"
+        ]
 
         # Allow all origins in DEBUG mode
         from django.conf import settings
