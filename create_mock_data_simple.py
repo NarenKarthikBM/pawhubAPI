@@ -400,16 +400,16 @@ class MockDataCreator:
                 )
 
                 # Fix embedding dimensions if needed (database expects 384, but API might return 512)
-                if embedding:
-                    if len(embedding) == 512:
-                        embedding = embedding[:384]  # Truncate to 384 dimensions
-                        print("🔧 Adjusted embedding from 512 to 384 dimensions")
-                    elif len(embedding) < 384:
-                        # Pad with zeros if too short
-                        embedding = embedding + [0.0] * (384 - len(embedding))
-                        print(
-                            f"🔧 Padded embedding from {len(embedding)} to 384 dimensions"
-                        )
+                # if embedding:
+                #     if len(embedding) == 512:
+                #         embedding = embedding[:384]  # Truncate to 384 dimensions
+                #         print("🔧 Adjusted embedding from 512 to 384 dimensions")
+                #     elif len(embedding) < 384:
+                #         # Pad with zeros if too short
+                #         embedding = embedding + [0.0] * (384 - len(embedding))
+                #         print(
+                #             f"🔧 Padded embedding from {len(embedding)} to 384 dimensions"
+                #         )
 
                 if not embedding or not species_data:
                     print(f"⚠️  ML processing failed for {image_path.name}, skipping...")
