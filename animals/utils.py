@@ -2,6 +2,11 @@ import concurrent.futures
 import secrets
 from typing import Dict, List, Optional, Tuple
 
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import Distance
+from django.db.models import FloatField, ExpressionWrapper, Min
+from pgvector.django import CosineDistance
+
 from rest_framework.validators import ValidationError
 import requests
 from django.contrib.gis.geos import Point
@@ -371,87 +376,92 @@ def calculate_breed_similarity(
 
 
 def find_similar_animal_profiles(
-    location: Point,
+    location,
     embedding: List[float],
     breed_analysis: Optional[List[str]] = None,
     radius_km: int = 30,
     similarity_threshold: float = 0.7,
     limit: int = 10,
 ) -> List[Dict]:
-    """Find similar animal profiles within radius using vector similarity and breed analysis
+    """
+    Find similar animal profiles within a geographic radius using vector similarity
+    and optional breed analysis. Returns a list of matched profiles with scores.
 
     Args:
-        location (Point): Sighting location
-        embedding (list): Image embedding vector
-        breed_analysis (list): Breed analysis features from ML model
-        radius_km (int): Search radius in kilometers
-        similarity_threshold (float): Minimum similarity score
-        limit (int): Maximum number of results
+        location: GEOS Point object representing sighting location.
+        embedding: Image embedding vector of the query image.
+        breed_analysis: Optional breed features for similarity comparison.
+        radius_km: Search radius in kilometers.
+        similarity_threshold: Minimum combined similarity to include.
+        limit: Maximum number of results.
 
     Returns:
-        list: List of matching animal profiles with similarity scores
+        List of dicts with matched profiles and similarity info.
     """
     try:
-        from pgvector.django import CosineDistance
-
-        # Find profiles within geographic radius that have embeddings
+        # Base queryset: profiles within radius with embeddings
         nearby_profiles = AnimalProfileModel.objects.filter(
             location__distance_lte=(location, D(km=radius_km)),
             media_files__embedding__isnull=False,
         ).distinct()
 
-        # Calculate similarity scores for profiles with embeddings
-        matching_profiles = []
+        # Annotate each profile with:
+        # 1. Minimum image cosine distance across all media files
+        # 2. Distance from query location (km)
+        annotated_profiles = nearby_profiles.annotate(
+            min_image_distance=Min(CosineDistance("media_files__embedding", embedding)),
+            distance_km=ExpressionWrapper(
+                Distance("location", location) / 1000.0, output_field=FloatField()
+            ),
+        )
 
-        for profile in nearby_profiles:
-            # Get the profile's media with embeddings
-            media_with_embeddings = (
-                profile.media_files.filter(embedding__isnull=False)
-                .annotate(similarity=1 - CosineDistance("embedding", embedding))
-                .order_by("-similarity")
-            )
+        results = []
+        for profile in annotated_profiles:
+            # Convert cosine distance to similarity
+            image_similarity = 1 - float(profile.min_image_distance)
 
-            if media_with_embeddings.exists():
-                best_match = media_with_embeddings.first()
-                image_similarity_score = float(best_match.similarity)
-
-                # Calculate breed similarity if breed analysis is available
-                breed_similarity_score = 0.0
-                if breed_analysis and profile.breed_analysis:
-                    breed_similarity_score = calculate_breed_similarity(
-                        breed_analysis, profile.breed_analysis
-                    )
-
-                # Combine image similarity and breed similarity
-                # Weight: 70% image similarity, 30% breed similarity
-                combined_similarity = (
-                    0.7 * image_similarity_score + 0.3 * breed_similarity_score
+            # Breed similarity
+            breed_similarity = 0.0
+            if breed_analysis and profile.breed_analysis:
+                breed_similarity = calculate_breed_similarity(
+                    breed_analysis, profile.breed_analysis
                 )
 
-                if image_similarity_score >= similarity_threshold:
-                    matching_profiles.append(
-                        {
-                            "profile": AnimalProfileModelSerializer(
-                                profile
-                            ).details_serializer(),
-                            "similarity_score": combined_similarity,
-                            "image_similarity": image_similarity_score,
-                            "breed_similarity": breed_similarity_score,
-                            "distance_km": float(
-                                profile.location.distance(location).km
-                            ),
-                            "matching_image_url": best_match.image_url,
-                        }
-                    )
+            # Combined similarity (70% image, 30% breed)
+            combined_similarity = 0.7 * image_similarity + 0.3 * breed_similarity
 
-        # Sort by combined similarity score (descending) and limit results
-        matching_profiles.sort(key=lambda x: x["similarity_score"], reverse=True)
-        return {"nearby_profiles": nearby_profiles.count(), "matching_profiles": matching_profiles[:limit]}
+            if combined_similarity >= similarity_threshold:
+                results.append(
+                    {
+                        "profile": profile,
+                        "similarity_score": combined_similarity,
+                        "image_similarity": image_similarity,
+                        "breed_similarity": breed_similarity,
+                        "distance_km": float(profile.distance_km),
+                        # Optional: get best media image URL
+                        "matching_image_url": (
+                            profile.media_files.filter(embedding__isnull=False)
+                            .order_by(
+                                ExpressionWrapper(
+                                    CosineDistance("embedding", embedding),
+                                    output_field=FloatField(),
+                                )
+                            )
+                            .first()
+                            .image_url
+                        )
+                        if profile.media_files.exists()
+                        else None,
+                    }
+                )
+
+        # Sort by combined similarity descending
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        return results[:limit]
 
     except Exception as e:
         print(f"Error finding similar profiles: {str(e)}")
         return []
-
 
 def create_sighting_record(
     data: Dict,
