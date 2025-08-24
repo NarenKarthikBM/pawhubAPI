@@ -42,15 +42,34 @@ class CorsMiddleware:
             "http://localhost:62170",
             "http://127.0.0.1:8080",
             "http://10.0.2.2:8000",  # Android emulator
-            "http://127.0.0.1:8000",  # iOS simulator"
+            "http://127.0.0.1:8000",  # iOS simulator
+            # Add common Flutter development ports
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "http://localhost:8081",
+            "http://localhost:8082",
+            "http://localhost:62171",
+            "http://localhost:62172",
+            # Flutter web development
+            "http://localhost:56789",
+            "http://127.0.0.1:56789",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000",
+            # Chrome extension / app origins
+            "chrome-extension://*",
+            "app://*",
         ]
 
         # Allow all origins in DEBUG mode
+        from django.conf import settings
 
-        # if getattr(settings, "DEBUG", False):
-        #     response["Access-Control-Allow-Origin"] = "*"
-        # elif origin in allowed_origins:
-        response["Access-Control-Allow-Origin"] = "*"
+        if getattr(settings, "DEBUG", False):
+            response["Access-Control-Allow-Origin"] = "*"
+        elif origin in allowed_origins:
+            response["Access-Control-Allow-Origin"] = origin
+        else:
+            # Fallback to allow all origins for development
+            response["Access-Control-Allow-Origin"] = "*"
 
         # Set CORS headers
         response["Access-Control-Allow-Methods"] = (
