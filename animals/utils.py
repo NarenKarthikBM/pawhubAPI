@@ -457,7 +457,9 @@ def find_similar_animal_profiles(
 
         # Sort by combined similarity descending
         results.sort(key=lambda x: x["similarity_score"], reverse=True)
-        return results[:limit]
+        return [{"profile": AnimalProfileModelSerializer(
+                                profile
+                            ).details_serializer(), "similarity_score": profile["similarity_score"]} for profile in results]
 
     except Exception as e:
         print(f"Error finding similar profiles: {str(e)}")
