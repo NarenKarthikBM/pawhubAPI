@@ -375,13 +375,18 @@ class EmergencyCreateAPI(APIView):
                     description="Description of the emergency (minimum 10 characters)",
                     min_length=10,
                 ),
+                "emergency_type": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Type of emergency",
+                    enum=["injury", "rescue_needed", "aggressive_behavior", "missing_lost_pet"],
+                ),
                 "image_url": openapi.Schema(
                     type=openapi.TYPE_STRING,
                     description="Optional URL of emergency image",
                     nullable=True,
                 ),
             },
-            required=["longitude", "latitude", "description"],
+            required=["longitude", "latitude", "description", "emergency_type"],
         ),
         responses={
             201: openapi.Response(

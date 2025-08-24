@@ -64,9 +64,7 @@ class CreateEmergencyInputValidator(GeneralValidator):
             "emergency_type": self.validate_data(
                 emergency_type,
                 self.validate_type("Emergency Type", emergency_type, str)
-                or self.validate_choice("Emergency Type", emergency_type, valid_types)
-                if emergency_type
-                else None,
+                or self.validate_choice("Emergency Type", emergency_type, valid_types),
                 "emergency_type",
             ),
         }

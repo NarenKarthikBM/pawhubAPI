@@ -102,9 +102,7 @@ def create_emergency(data, user):
 
         # Create emergency report
         emergency = Emergency.objects.create(
-            emergency_type=data.get(
-                "emergency_type", "injury"
-            ),  # Default to injury if not specified
+            emergency_type=data["emergency_type"],  # Required field - no default
             reporter=user,
             location=location,
             image=image_media,
