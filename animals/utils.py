@@ -407,9 +407,9 @@ def find_similar_animal_profiles(
         # 2. Distance from query location (km)
         annotated_profiles = nearby_profiles.annotate(
             min_image_distance=Min(CosineDistance("media_files__embedding", embedding)),
-            distance_km=ExpressionWrapper(
-                Distance("location", location) / 1000.0, output_field=FloatField()
-            ),
+            # distance_km=ExpressionWrapper(
+            #     Distance("location", location) / 1000.0, output_field=FloatField()
+            # ),
         )
 
         results = []
@@ -432,7 +432,7 @@ def find_similar_animal_profiles(
                     "similarity_score": combined_similarity,
                     "image_similarity": image_similarity,
                     # "breed_similarity": breed_similarity,
-                    "distance_km": float(profile.distance_km),
+                    "distance_km": 10,
                     # Optional: get best media image URL
                     # "matching_image_url": (
                     #     profile.media_files.filter(embedding__isnull=False)
