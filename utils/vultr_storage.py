@@ -15,7 +15,7 @@ class VultrObjectStorageManager:
     """Manager class for Vultr Object Storage operations"""
 
     def __init__(self):
-        self.enabled = getattr(settings, "VULTR_OBJECT_STORAGE_ENABLED", False)
+        self.enabled = True
         if not self.enabled:
             raise ValueError("Vultr Object Storage is not enabled")
 
