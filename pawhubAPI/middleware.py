@@ -50,7 +50,7 @@ class CorsMiddleware:
         # if getattr(settings, "DEBUG", False):
         #     response["Access-Control-Allow-Origin"] = "*"
         # elif origin in allowed_origins:
-        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Origin"] = "*"
 
         # Set CORS headers
         response["Access-Control-Allow-Methods"] = (
