@@ -58,4 +58,14 @@ urlpatterns = [
         views.NearbyAdoptionsAPI.as_view(),
         name="nearby-adoptions",
     ),
+    path(
+        "adoptions/my-listings/",
+        views.OrganisationAdoptionsListAPI.as_view(),
+        name="organisation-adoptions-list",
+    ),
+    path(
+        "adoptions/mark-adopted/",
+        views.MarkAdoptionAsAdoptedAPI.as_view(),
+        name="mark-adoption-adopted",
+    ),
 ]

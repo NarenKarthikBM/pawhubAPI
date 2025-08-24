@@ -860,3 +860,83 @@ def get_nearby_adoptions(latitude, longitude, radius_km=20):
 
     except Exception as e:
         return {"error": f"Failed to retrieve nearby adoptions: {str(e)}"}
+
+
+def get_organisation_adoptions(organisation):
+    """Get all adoption listings posted by an organization
+
+    Args:
+        organisation (Organisation): The organization to get adoptions for
+
+    Returns:
+        dict: List of adoption listings or error response
+    """
+    try:
+        # Get all adoptions posted by this organization
+        adoptions = (
+            Adoption.objects.filter(posted_by=organisation)
+            .select_related("profile", "posted_by")
+            .prefetch_related("profile__images")
+        )
+
+        # Serialize adoption data
+        adoptions_data = [
+            AdoptionSerializer(adoption).details_serializer() for adoption in adoptions
+        ]
+
+        return {
+            "success": True,
+            "adoptions": adoptions_data,
+            "count": len(adoptions_data),
+            "organisation": {
+                "id": organisation.id,
+                "name": organisation.name,
+                "email": organisation.email,
+                "is_verified": organisation.is_verified,
+            },
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to retrieve organization adoptions: {str(e)}"}
+
+
+def mark_adoption_as_adopted(adoption_id, organisation):
+    """Mark an adoption listing as adopted
+
+    Args:
+        adoption_id (int): ID of the adoption to mark as adopted
+        organisation (Organisation): The organization that posted the adoption
+
+    Returns:
+        dict: Updated adoption details or error response
+    """
+    try:
+        # Get the adoption listing
+        adoption = (
+            Adoption.objects.filter(id=adoption_id, posted_by=organisation)
+            .select_related("profile", "posted_by")
+            .prefetch_related("profile__images")
+            .first()
+        )
+
+        if not adoption:
+            return {
+                "error": "Adoption listing not found or you don't have permission to modify it"
+            }
+
+        # Check if already adopted
+        if adoption.status == "adopted":
+            return {"error": "This adoption listing is already marked as adopted"}
+
+        # Update status to adopted
+        adoption.status = "adopted"
+        adoption.save()
+
+        return {
+            "success": True,
+            "message": "Adoption listing marked as adopted successfully",
+            "adoption": AdoptionSerializer(adoption).details_serializer(),
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to mark adoption as adopted: {str(e)}"}

@@ -368,3 +368,19 @@ class UploadImageInputValidator(GeneralValidator):
             return f"{field_name} must be a valid image file (JPEG, PNG, WEBP)"
 
         return None
+
+
+class MarkAdoptionAsAdoptedInputValidator(GeneralValidator):
+    def __init__(self, data) -> None:
+        self.data = data
+
+    def serialized_data(self):
+        adoption_id = self.data.get("adoption_id")
+
+        return {
+            "adoption_id": self.validate_data(
+                adoption_id,
+                self.validate_type("Adoption ID", adoption_id, int),
+                "adoption_id",
+            ),
+        }

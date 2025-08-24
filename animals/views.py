@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from pawhubAPI.settings.custom_DRF_settings.authentication import (
+    OrganisationTokenAuthentication,
     UserTokenAuthentication,
 )
 
@@ -22,9 +23,16 @@ from .serializers import (
     AnimalSightingSerializer,
     EmergencySerializer,
 )
-from .utils import create_emergency, get_nearby_adoptions, mark_pet_as_lost
+from .utils import (
+    create_emergency,
+    get_nearby_adoptions,
+    get_organisation_adoptions,
+    mark_adoption_as_adopted,
+    mark_pet_as_lost,
+)
 from .validator import (
     CreateEmergencyInputValidator,
+    MarkAdoptionAsAdoptedInputValidator,
     MarkPetAsLostInputValidator,
     NearbyAdoptionsInputValidator,
 )
@@ -1356,5 +1364,237 @@ class NearbyAdoptionsAPI(APIView):
         except Exception as e:
             return Response(
                 {"error": f"Failed to retrieve nearby adoptions: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class OrganisationAdoptionsListAPI(APIView):
+    """API view to list adoption listings posted by an organization
+
+    Methods:
+        GET
+    """
+
+    authentication_classes = [OrganisationTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Get list of adoption listings posted by the authenticated organization",
+        operation_summary="List Organization's Adoption Listings",
+        tags=["Adoptions"],
+        responses={
+            200: openapi.Response(
+                description="Successfully retrieved organization's adoption listings",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        "adoptions": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                    "profile": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "id": openapi.Schema(
+                                                type=openapi.TYPE_INTEGER
+                                            ),
+                                            "name": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "species": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "breed": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "type": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "images": openapi.Schema(
+                                                type=openapi.TYPE_ARRAY
+                                            ),
+                                            "location": openapi.Schema(
+                                                type=openapi.TYPE_OBJECT
+                                            ),
+                                            "is_sterilized": openapi.Schema(
+                                                type=openapi.TYPE_BOOLEAN
+                                            ),
+                                        },
+                                    ),
+                                    "posted_by": openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            "id": openapi.Schema(
+                                                type=openapi.TYPE_INTEGER
+                                            ),
+                                            "name": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "email": openapi.Schema(
+                                                type=openapi.TYPE_STRING
+                                            ),
+                                            "is_verified": openapi.Schema(
+                                                type=openapi.TYPE_BOOLEAN
+                                            ),
+                                        },
+                                    ),
+                                    "description": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "created_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "updated_at": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                },
+                            ),
+                        ),
+                        "count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "organisation": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                "is_verified": openapi.Schema(
+                                    type=openapi.TYPE_BOOLEAN
+                                ),
+                            },
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response(description="Authentication failed"),
+            500: openapi.Response(description="Internal server error"),
+        },
+    )
+    def get(self, request):
+        """Get adoption listings posted by the authenticated organization
+
+        Args:
+            request: HTTP request object
+
+        Returns:
+            Response: List of adoption listings posted by the organization
+        """
+        try:
+            # Get adoption listings for the authenticated organization
+            result = get_organisation_adoptions(organisation=request.user)
+
+            if "error" in result:
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to retrieve organization adoptions: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class MarkAdoptionAsAdoptedAPI(APIView):
+    """API view to mark an adoption listing as adopted
+
+    Methods:
+        PATCH
+    """
+
+    authentication_classes = [OrganisationTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_description="Mark an adoption listing as adopted. Only the organization that posted the adoption can mark it as adopted.",
+        operation_summary="Mark Adoption as Adopted",
+        tags=["Adoptions"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["adoption_id"],
+            properties={
+                "adoption_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="ID of the adoption listing to mark as adopted",
+                ),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                description="Successfully marked adoption as adopted",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                        "adoption": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                                "profile": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                "posted_by": openapi.Schema(type=openapi.TYPE_OBJECT),
+                                "description": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                "created_at": openapi.Schema(type=openapi.TYPE_STRING),
+                                "updated_at": openapi.Schema(type=openapi.TYPE_STRING),
+                            },
+                        ),
+                    },
+                ),
+            ),
+            400: openapi.Response(description="Invalid input data"),
+            401: openapi.Response(description="Authentication failed"),
+            404: openapi.Response(
+                description="Adoption listing not found or no permission"
+            ),
+            500: openapi.Response(description="Internal server error"),
+        },
+    )
+    def patch(self, request):
+        """Mark an adoption listing as adopted
+
+        Args:
+            request: HTTP request object
+
+        Returns:
+            Response: Updated adoption details or error response
+        """
+        try:
+            # Validate input data
+            validated_data = MarkAdoptionAsAdoptedInputValidator(
+                request.data
+            ).serialized_data()
+
+            # Check for validation errors
+            if "error" in validated_data:
+                return Response(validated_data, status=status.HTTP_400_BAD_REQUEST)
+
+            # Mark adoption as adopted
+            result = mark_adoption_as_adopted(
+                adoption_id=validated_data["adoption_id"],
+                organisation=request.user,
+            )
+
+            if "error" in result:
+                # Check if it's a not found error
+                if "not found" in result["error"] or "permission" in result["error"]:
+                    return Response(
+                        {"error": result["error"]},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                return Response(
+                    {"error": result["error"]},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to mark adoption as adopted: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
