@@ -252,7 +252,7 @@ class MockDataCreator:
                     print("❌ No similar animals found, creating new animal profile...")
                     
                     # Create new animal profile
-                    reporter = random.choice(users + organisations) if users and organisations else None
+                    animal_reporter = random.choice(users + organisations) if users and organisations else None
                     
                     # Create media with the actual uploaded image URL
                     animal_media = AnimalMedia.objects.create(
@@ -268,7 +268,7 @@ class MockDataCreator:
                         species=species_data.get('species', 'dog'),
                         breed=species_data.get('breed', 'Mixed'),
                         location=self.get_random_location_in_radius(center_lat, center_lng),
-                        owner=reporter if hasattr(reporter, 'username') else None,
+                        owner=animal_reporter if hasattr(animal_reporter, 'username') else None,
                     )
                     
                     # Set the animal reference in the media
@@ -283,7 +283,11 @@ class MockDataCreator:
                 location = self.get_random_location_in_radius(center_lat, center_lng)
                 sighting_time = self.get_random_past_datetime()
                 
-                reporter = random.choice(users + organisations) if users and organisations else None
+                # Ensure we have a valid user as reporter (AnimalSighting requires CustomUser, not Organisation)
+                reporter = random.choice(users) if users else None
+                if not reporter:
+                    print(f"⚠️  No users available for reporter, skipping sighting...")
+                    continue
                 
                 # Create media for sighting (reuse the same uploaded image)
                 sighting_media = AnimalMedia.objects.create(
@@ -295,7 +299,7 @@ class MockDataCreator:
                 # Create sighting with the timestamp
                 sighting = AnimalSighting.objects.create(
                     animal=matched_animal,
-                    reporter=reporter if hasattr(reporter, 'username') else None,
+                    reporter=reporter,  # Now guaranteed to be a valid CustomUser
                     location=location,
                     image=sighting_media,  # Reference the media we just created
                 )
