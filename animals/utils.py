@@ -470,7 +470,7 @@ def create_sighting_record(
     Returns:
         AnimalSighting: Created sighting object
     """
-    location = Point(data["longitude"], data["latitude"], srid=4326)
+    location = Point(float(data["longitude"]), float(data["latitude"]), srid=4326)
 
     return AnimalSighting.objects.create(
         reporter=user,
