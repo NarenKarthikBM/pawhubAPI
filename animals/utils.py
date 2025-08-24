@@ -458,7 +458,8 @@ def find_similar_animal_profiles(
 
     except Exception as e:
         print(f"Error finding similar profiles: {str(e)}")
-        return []
+        raise ValidationError({"error": str(e)})
+        # return []
 
 def create_sighting_record(
     data: Dict,
