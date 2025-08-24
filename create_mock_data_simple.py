@@ -196,14 +196,22 @@ class MockDataCreator:
 
                 # Upload and process image with ML
                 print("🤖 Calling ML API for species identification and embedding...")
-                result = upload_and_process_image(image_path)
                 
-                if not result:
+                # Create Django uploaded file object from local file
+                with open(image_path, 'rb') as img_file:
+                    uploaded_file = SimpleUploadedFile(
+                        name=image_path.name,
+                        content=img_file.read(),
+                        content_type=f"image/{image_path.suffix[1:]}"
+                    )
+                
+                result = upload_and_process_image(uploaded_file)
+                
+                if not result or len(result) != 3:
                     print(f"⚠️  Failed to process image {image_path.name}, skipping...")
                     continue
 
-                species_data = result.get('species')
-                embedding = result.get('embedding')
+                image_url, species_data, embedding = result
 
                 # Fix embedding dimensions if needed (database expects 512 now)
                 if embedding:
@@ -239,16 +247,9 @@ class MockDataCreator:
                     # Create new animal profile
                     reporter = random.choice(users + organisations) if users and organisations else None
                     
-                    # Create media first
-                    with open(image_path, 'rb') as img_file:
-                        uploaded_file = SimpleUploadedFile(
-                            name=image_path.name,
-                            content=img_file.read(),
-                            content_type=f"image/{image_path.suffix[1:]}"
-                        )
-                    
+                    # Create media with the actual uploaded image URL
                     animal_media = AnimalMedia.objects.create(
-                        image_url=f"https://mock-storage.vultr.com/{image_path.name}",
+                        image_url=image_url,  # Use the actual uploaded URL
                         animal=None,  # Will be set after animal creation
                         embedding=embedding,
                     )
@@ -277,16 +278,9 @@ class MockDataCreator:
                 
                 reporter = random.choice(users + organisations) if users and organisations else None
                 
-                # Create media for sighting (using the same image)
-                with open(image_path, 'rb') as img_file:
-                    uploaded_file = SimpleUploadedFile(
-                        name=f"sighting_{image_path.name}",
-                        content=img_file.read(),
-                        content_type=f"image/{image_path.suffix[1:]}"
-                    )
-                
+                # Create media for sighting (reuse the same uploaded image)
                 sighting_media = AnimalMedia.objects.create(
-                    image_url=f"https://mock-storage.vultr.com/sighting_{image_path.name}",
+                    image_url=image_url,  # Use the same uploaded URL
                     animal=matched_animal,
                     embedding=embedding,
                 )
