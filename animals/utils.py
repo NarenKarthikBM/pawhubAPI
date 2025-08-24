@@ -647,6 +647,157 @@ def get_user_pets(user):
         return {"error": f"Failed to retrieve user pets: {str(e)}"}
 
 
+def find_similar_pets(
+    query_pet: AnimalProfileModel, limit: int = 10
+) -> List[AnimalProfileModel]:
+    """
+    Finds the most similar pets by combining image similarity (80%)
+    and location proximity (20%) into a weighted score.
+
+    Args:
+        query_pet: The AnimalProfileModel instance we want to find matches for.
+        limit: The maximum number of similar pets to return.
+
+    Returns:
+        A list of the most similar AnimalProfileModel objects.
+    """
+    from django.contrib.gis.db.models.functions import Distance
+    from django.db.models import ExpressionWrapper, F, FloatField, Min
+    from pgvector.django import CosineDistance
+
+    if not query_pet.location:
+        return []
+
+    # Get the best embedding from query pet's media files
+    query_embedding = None
+    best_media = query_pet.media_files.filter(embedding__isnull=False).first()
+    if best_media:
+        query_embedding = best_media.embedding
+
+    if not query_embedding:
+        return []
+
+    # Distance from query pet's location (in meters, converted to km)
+    location_distance = Distance("location", query_pet.location)
+    location_km = ExpressionWrapper(
+        location_distance / 1000.0, output_field=FloatField()
+    )
+
+    # Query pets with weighted similarity score
+    similar_pets = (
+        AnimalProfileModel.objects.filter(
+            location__isnull=False,  # Must have location
+            media_files__embedding__isnull=False,  # Must have embeddings
+        )
+        .exclude(id=query_pet.id)  # Exclude the query pet itself
+        .annotate(
+            # Get minimum cosine distance across all media files
+            min_image_distance=Min(
+                CosineDistance("media_files__embedding", query_embedding)
+            ),
+            # Calculate location distance in km
+            location_km=location_km,
+            # Weighted score: 80% image similarity + 20% location proximity
+            # Lower score is better (cosine distance and geographic distance)
+            weighted_score=ExpressionWrapper(
+                0.8 * F("min_image_distance") + 0.2 * F("location_km"),
+                output_field=FloatField(),
+            ),
+        )
+        .distinct()  # Remove duplicates from joins
+        .order_by("weighted_score")[:limit]
+    )
+
+    return list(similar_pets)
+
+
+def find_similar_pets_with_details(
+    query_pet: AnimalProfileModel, limit: int = 10
+) -> List[Dict]:
+    """
+    Finds the most similar pets with detailed similarity breakdown.
+    Uses the same formula as find_similar_pets but returns more information.
+
+    Args:
+        query_pet: The AnimalProfileModel instance we want to find matches for.
+        limit: The maximum number of similar pets to return.
+
+    Returns:
+        A list of dictionaries containing pet data and similarity metrics.
+    """
+    from django.contrib.gis.db.models.functions import Distance
+    from django.db.models import ExpressionWrapper, F, FloatField, Min
+    from pgvector.django import CosineDistance
+
+    if not query_pet.location:
+        return []
+
+    # Get the best embedding from query pet's media files
+    query_embedding = None
+    best_media = query_pet.media_files.filter(embedding__isnull=False).first()
+    if best_media:
+        query_embedding = best_media.embedding
+
+    if not query_embedding:
+        return []
+
+    # Distance from query pet's location (in meters, converted to km)
+    location_distance = Distance("location", query_pet.location)
+    location_km = ExpressionWrapper(
+        location_distance / 1000.0, output_field=FloatField()
+    )
+
+    # Query pets with weighted similarity score
+    similar_pets = (
+        AnimalProfileModel.objects.filter(
+            location__isnull=False,  # Must have location
+            media_files__embedding__isnull=False,  # Must have embeddings
+        )
+        .exclude(id=query_pet.id)  # Exclude the query pet itself
+        .annotate(
+            # Get minimum cosine distance across all media files
+            min_image_distance=Min(
+                CosineDistance("media_files__embedding", query_embedding)
+            ),
+            # Calculate location distance in km
+            location_km=location_km,
+            # Weighted score: 80% image similarity + 20% location proximity
+            # Lower score is better (cosine distance and geographic distance)
+            weighted_score=ExpressionWrapper(
+                0.8 * F("min_image_distance") + 0.2 * F("location_km"),
+                output_field=FloatField(),
+            ),
+        )
+        .distinct()  # Remove duplicates from joins
+        .order_by("weighted_score")[:limit]
+    )
+
+    # Build detailed results
+    detailed_results = []
+    for pet in similar_pets:
+        # Calculate image similarity score (1 - cosine_distance)
+        image_similarity = 1.0 - pet.min_image_distance
+
+        detailed_results.append(
+            {
+                "pet": AnimalProfileModelSerializer(pet).details_serializer(),
+                "similarity_metrics": {
+                    "weighted_score": float(pet.weighted_score),
+                    "image_similarity": float(
+                        image_similarity
+                    ),  # 0-1, higher is better
+                    "image_distance": float(
+                        pet.min_image_distance
+                    ),  # 0-1, lower is better
+                    "location_distance_km": float(pet.location_km),
+                    "weights": {"image_weight": 0.8, "location_weight": 0.2},
+                },
+            }
+        )
+
+    return detailed_results
+
+
 def get_nearby_adoptions(latitude, longitude, radius_km=20):
     """Get available adoption listings from organizations within specified radius
 
