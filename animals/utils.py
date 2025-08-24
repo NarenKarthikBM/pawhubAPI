@@ -418,42 +418,40 @@ def find_similar_animal_profiles(
             image_similarity = 1 - float(profile.min_image_distance)
 
             # Breed similarity
-            breed_similarity = 0.0
-            if breed_analysis and profile.breed_analysis:
-                breed_similarity = calculate_breed_similarity(
-                    breed_analysis, profile.breed_analysis
-                )
+            # breed_similarity = 0.0
+            # if breed_analysis and profile.breed_analysis:
+            #     breed_similarity = calculate_breed_similarity(
+            #         breed_analysis, profile.breed_analysis
+            #     )
 
             # Combined similarity (70% image, 30% breed)
-            combined_similarity = 0.7 * image_similarity + 0.3 * breed_similarity
-
-            if combined_similarity >= similarity_threshold:
-                results.append(
-                    {
-                        "profile": profile,
-                        "similarity_score": combined_similarity,
-                        "image_similarity": image_similarity,
-                        "breed_similarity": breed_similarity,
-                        "distance_km": float(profile.distance_km),
-                        # Optional: get best media image URL
-                        "matching_image_url": (
-                            profile.media_files.filter(embedding__isnull=False)
-                            .order_by(
-                                ExpressionWrapper(
-                                    CosineDistance("embedding", embedding),
-                                    output_field=FloatField(),
-                                )
+            combined_similarity = image_similarity
+            results.append(
+                {
+                    "profile": profile,
+                    "similarity_score": combined_similarity,
+                    "image_similarity": image_similarity,
+                    # "breed_similarity": breed_similarity,
+                    "distance_km": float(profile.distance_km),
+                    # Optional: get best media image URL
+                    "matching_image_url": (
+                        profile.media_files.filter(embedding__isnull=False)
+                        .order_by(
+                            ExpressionWrapper(
+                                CosineDistance("embedding", embedding),
+                                output_field=FloatField(),
                             )
-                            .first()
-                            .image_url
                         )
-                        if profile.media_files.exists()
-                        else None,
-                    }
-                )
+                        .first()
+                        .image_url
+                    )
+                    if profile.media_files.exists()
+                    else None,
+                }
+            )
 
         # Sort by combined similarity descending
-        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        # results.sort(key=lambda x: x["similarity_score"], reverse=True)
         return [{"profile": AnimalProfileModelSerializer(
                                 profile
                             ).details_serializer(), "similarity_score": profile["similarity_score"]} for profile in results]
