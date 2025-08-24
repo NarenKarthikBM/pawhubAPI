@@ -3,6 +3,7 @@ from django.contrib.gis.measure import D
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from pawhubAPI.settings.custom_DRF_settings.parsers import OctetStreamParser
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
@@ -452,59 +453,34 @@ class CreateSightingAPI(APIView):
     """
 
     authentication_classes = [UserTokenAuthentication]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [OctetStreamParser]
 
     @swagger_auto_schema(
-        operation_description="Create a new animal sighting with image upload, ML processing and profile matching",
-        operation_summary="Create Animal Sighting",
+        operation_description="Create a new animal sighting with raw image upload and coordinates in query params",
+        operation_summary="Create Animal Sighting (Octet-Stream)",
         tags=["Animal Sightings"],
         manual_parameters=[
             openapi.Parameter(
-                "image_file",
-                openapi.IN_FORM,
-                description="Image file to upload (JPG, PNG, GIF, WebP)",
-                type=openapi.TYPE_FILE,
-                required=True,
-            ),
-            openapi.Parameter(
-                "longitude",
-                openapi.IN_FORM,
-                description="Longitude coordinate",
-                type=openapi.TYPE_NUMBER,
-                required=True,
-            ),
-            openapi.Parameter(
                 "latitude",
-                openapi.IN_FORM,
+                openapi.IN_QUERY,
                 description="Latitude coordinate",
                 type=openapi.TYPE_NUMBER,
                 required=True,
             ),
+            openapi.Parameter(
+                "longitude",
+                openapi.IN_QUERY,
+                description="Longitude coordinate",
+                type=openapi.TYPE_NUMBER,
+                required=True,
+            ),
         ],
-        consumes=["multipart/form-data"],
+        consumes=["application/octet-stream"],
         responses={
             201: openapi.Response(
-                description="Sighting created successfully with matching profiles",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "sighting": openapi.Schema(type=openapi.TYPE_OBJECT),
-                        "ml_species_identification": openapi.Schema(
-                            type=openapi.TYPE_OBJECT
-                        ),
-                        "matching_profiles": openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(type=openapi.TYPE_OBJECT),
-                        ),
-                        "profile_selection_required": openapi.Schema(
-                            type=openapi.TYPE_BOOLEAN
-                        ),
-                    },
-                ),
+                description="Sighting created successfully with matching profiles"
             ),
-            400: openapi.Response(
-                description="Invalid input data or file upload error"
-            ),
+            400: openapi.Response(description="Invalid input data or file upload error"),
         },
     )
     def post(self, request):
@@ -519,14 +495,28 @@ class CreateSightingAPI(APIView):
             )
             from .validator import CreateSightingInputValidator
 
-            # Validate input data (now includes file validation)
-            validated_data = CreateSightingInputValidator(
-                request.data
-            ).serialized_data()
+            lat = request.query_params.get('latitude')
+            lon = request.query_params.get('longitude')
+            if not lat or not lon:
+                return Response(
+                    {"error": "latitude and longitude query parameters are required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            validated_data = {"longitude": lon, "latitude": lat}
+
+            # Get uploaded file from parser
+            image_file = request.data.get('image_file')
+            if not image_file:
+                return Response(
+                    {"error": "No image file uploaded"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
 
             # Upload image to Vultr Object Storage and process with ML APIs
             image_url, species_data, embedding = upload_and_process_image(
-                validated_data["image_file"]
+                image_file
             )
 
             # Handle upload or ML API failures

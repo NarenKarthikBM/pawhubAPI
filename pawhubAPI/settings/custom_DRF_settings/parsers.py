@@ -1,7 +1,6 @@
 import ujson
 from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser
-
+from rest_framework.parsers import JSONParser, BaseParser
 
 class UJSONParser(JSONParser):
     """
@@ -22,3 +21,17 @@ class UJSONParser(JSONParser):
             return ujson.loads(decoded)
         except ValueError as exc:
             raise ParseError("JSON parse error - %s" % exc)
+
+
+class OctetStreamParser(BaseParser):
+    """
+    Parses raw octet-stream (binary) files.
+    """
+    media_type = 'application/octet-stream'
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        # Get filename from headers (optional)
+        request = parser_context.get('request') if parser_context else None
+        filename = request.headers.get('X-Filename', 'uploaded_file') if request else 'uploaded_file'
+        from django.core.files.base import ContentFile
+        return {'image_file': ContentFile(stream.read(), name=filename)}
