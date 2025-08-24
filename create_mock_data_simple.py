@@ -24,6 +24,7 @@ os.environ.setdefault("DJANGO_LOG_LEVEL", "ERROR")
 
 # Configure minimal logging before Django setup
 import logging
+
 logging.basicConfig(level=logging.ERROR)
 
 django.setup()
@@ -398,6 +399,18 @@ class MockDataCreator:
                     uploaded_file
                 )
 
+                # Fix embedding dimensions if needed (database expects 384, but API might return 512)
+                if embedding:
+                    if len(embedding) == 512:
+                        embedding = embedding[:384]  # Truncate to 384 dimensions
+                        print("🔧 Adjusted embedding from 512 to 384 dimensions")
+                    elif len(embedding) < 384:
+                        # Pad with zeros if too short
+                        embedding = embedding + [0.0] * (384 - len(embedding))
+                        print(
+                            f"🔧 Padded embedding from {len(embedding)} to 384 dimensions"
+                        )
+
                 if not embedding or not species_data:
                     print(f"⚠️  ML processing failed for {image_path.name}, skipping...")
                     continue
@@ -460,19 +473,19 @@ class MockDataCreator:
 
                     print(f"🐾 Created new animal profile: {matched_animal.name}")
 
-                # Create the sighting record
+                # Create media record for the sighting first
+                sighting_media = AnimalMedia.objects.create(
+                    image_url=image_url, animal=matched_animal, embedding=embedding
+                )
+
+                # Create the sighting record with reference to the media
                 sighting = AnimalSighting.objects.create(
                     animal=matched_animal,
                     location=location,
                     reporter=reporter,
                     breed_analysis=breed_analysis,
+                    image=sighting_media,  # Reference the media we just created
                     created_at=sighting_time,
-                    updated_at=sighting_time,
-                )
-
-                # Create media record for the sighting
-                AnimalMedia.objects.create(
-                    image_url=image_url, animal=matched_animal, embedding=embedding
                 )
 
                 created_sightings.append(sighting)
