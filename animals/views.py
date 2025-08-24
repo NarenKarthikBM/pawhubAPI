@@ -547,9 +547,9 @@ class CreateSightingAPI(APIView):
                 validated_data, request.user, animal_media, breed_analysis
             )
 
-            # Find similar animal profiles within 10km using breed analysis
+            # Find similar animal profiles within 30km using breed analysis
             matching_profiles = find_similar_animal_profiles(
-                sighting.location, embedding, breed_analysis, radius_km=10
+                sighting.location, embedding, breed_analysis, radius_km=30, similarity_threshold=0.5
             )
 
             # Format matching profiles

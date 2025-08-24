@@ -374,7 +374,7 @@ def find_similar_animal_profiles(
     location: Point,
     embedding: List[float],
     breed_analysis: Optional[List[str]] = None,
-    radius_km: int = 10,
+    radius_km: int = 30,
     similarity_threshold: float = 0.7,
     limit: int = 10,
 ) -> List[Dict]:
