@@ -392,7 +392,6 @@ class SightingSerializer:
 class SightingMatchSerializer:
     """This serializer class formats animal profile matches for sighting workflow"""
 
-    @staticmethod
     def format_matching_profiles(matching_profiles):
         """Format matching profiles for frontend display
 
