@@ -19,11 +19,11 @@ class VultrObjectStorageManager:
         if not self.enabled:
             raise ValueError("Vultr Object Storage is not enabled")
 
-        self.access_key_id = getattr(settings, "VULTR_ACCESS_KEY_ID", "")
-        self.secret_access_key = getattr(settings, "VULTR_SECRET_ACCESS_KEY", "")
-        self.endpoint_url = getattr(settings, "VULTR_ENDPOINT_URL", "")
-        self.region = getattr(settings, "VULTR_REGION", "")
-        self.bucket_name = getattr(settings, "VULTR_BUCKET_NAME", "")
+        self.access_key_id = getattr(settings, "VULTR_ACCESS_KEY_ID", "3XBPP2V081DPDI0KM5MC")
+        self.secret_access_key = getattr(settings, "VULTR_SECRET_ACCESS_KEY", "yWmDm5mELAI7kfnYDawDEkxh5wJaJfG3z5mAACrW")
+        self.endpoint_url = getattr(settings, "VULTR_ENDPOINT_URL", "https://blr1.vultrobjects.com")
+        self.region = getattr(settings, "VULTR_REGION", "blr1")
+        self.bucket_name = getattr(settings, "VULTR_BUCKET_NAME", "pawhub-bucket")
 
         if not all(
             [
