@@ -554,7 +554,7 @@ class CreateSightingAPI(APIView):
 
             # Format matching profiles
             formatted_matches = SightingMatchSerializer.format_matching_profiles(
-                matching_profiles["matching_profiles"]
+                matching_profiles
             )
 
             # Serialize response
