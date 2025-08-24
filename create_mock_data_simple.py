@@ -19,6 +19,13 @@ sys.path.insert(0, str(project_root))
 
 # Set up Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pawhubAPI.settings")
+# Disable logging to avoid file permission issues
+os.environ.setdefault("DJANGO_LOG_LEVEL", "ERROR")
+
+# Configure minimal logging before Django setup
+import logging
+logging.basicConfig(level=logging.ERROR)
+
 django.setup()
 
 from django.contrib.gis.geos import Point

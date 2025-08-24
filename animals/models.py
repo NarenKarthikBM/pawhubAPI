@@ -22,7 +22,7 @@ class AnimalMedia(models.Model):
         blank=True,
     )
     embedding = VectorField(
-        dimensions=384,  # Standard dimension for sentence-transformers
+        dimensions=512,  # Updated to match ML API output (was 384)
         help_text="Vector embedding for similarity matching",
         null=True,
         blank=True,
