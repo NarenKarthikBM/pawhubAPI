@@ -401,9 +401,8 @@ def find_similar_animal_profiles(
     try:
         # Base queryset: profiles within radius with embeddings
         nearby_profiles = AnimalProfileModel.objects.filter(
-            location__distance_lte=(location, D(km=radius_km)),
             media_files__embedding__isnull=False,
-        ).distinct()
+        )
 
         # Annotate each profile with:
         # 1. Minimum image cosine distance across all media files
