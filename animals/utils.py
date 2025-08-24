@@ -428,7 +428,7 @@ def find_similar_animal_profiles(
                     0.7 * image_similarity_score + 0.3 * breed_similarity_score
                 )
 
-                if combined_similarity >= similarity_threshold:
+                if image_similarity_score >= similarity_threshold:
                     matching_profiles.append(
                         {
                             "profile": AnimalProfileModelSerializer(
@@ -446,7 +446,7 @@ def find_similar_animal_profiles(
 
         # Sort by combined similarity score (descending) and limit results
         matching_profiles.sort(key=lambda x: x["similarity_score"], reverse=True)
-        return matching_profiles[:limit]
+        return {"nearby_profiles": nearby_profiles.count(), "matching_profiles": matching_profiles[:limit]}
 
     except Exception as e:
         print(f"Error finding similar profiles: {str(e)}")

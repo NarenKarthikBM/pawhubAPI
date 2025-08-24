@@ -549,12 +549,12 @@ class CreateSightingAPI(APIView):
 
             # Find similar animal profiles within 30km using breed analysis
             matching_profiles = find_similar_animal_profiles(
-                sighting.location, embedding, breed_analysis, radius_km=30, similarity_threshold=0.5
+                sighting.location, embedding, breed_analysis, radius_km=100, similarity_threshold=0
             )
 
             # Format matching profiles
             formatted_matches = SightingMatchSerializer.format_matching_profiles(
-                matching_profiles
+                matching_profiles["matching_profiles"]
             )
 
             # Serialize response
@@ -563,7 +563,7 @@ class CreateSightingAPI(APIView):
                 formatted_matches, species_data
             )
 
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            return Response({"serializer": response_data, "nearby": matching_profiles["nearby_profiles"]}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response(
