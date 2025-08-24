@@ -290,7 +290,10 @@ def upload_and_process_image(
 
     if not success:
         # Return error message in place of image_url for error handling
-        return result, None, None
+        return Response(
+            {"error": "Image upload failed. Please try again.", "details": result},
+            status=400,
+        )
 
     image_url = result
 
